@@ -701,6 +701,7 @@ main {
 }
 
 .mine-legend .flag-legend svg { color: var(--coral); }
+.mine-legend .question-legend svg { color: var(--forest); }
 .mine-legend .mine-legend-item svg { color: var(--danger); }
 .mine-legend .detonated-legend svg { color: var(--danger); }
 .mine-legend strong { color: var(--ink); }
@@ -739,13 +740,15 @@ main {
 }
 
 .mine-cell.hidden,
-.mine-cell.flagged {
+.mine-cell.flagged,
+.mine-cell.questioned {
   border-color: var(--paper-strong) var(--line-strong) var(--line-strong) var(--paper-strong);
   background: color-mix(in srgb, var(--mint) 48%, var(--paper));
 }
 
 .mine-cell.hidden:hover,
-.mine-cell.flagged:hover {
+.mine-cell.flagged:hover,
+.mine-cell.questioned:hover {
   background: color-mix(in srgb, var(--sun) 34%, var(--paper-strong));
 }
 
@@ -763,7 +766,15 @@ main {
   color: var(--coral);
 }
 
-.mine-cell.open:has(svg) {
+.mine-cell.questioned {
+  color: var(--forest);
+}
+
+.mine-cell .question-mark {
+  font: 800 17px/1 var(--font-display);
+}
+
+.mine-cell.open.actual-mine {
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 18%, var(--paper-strong));
 }
@@ -796,6 +807,18 @@ main {
 :root[data-theme='dark'] .mine-cell.adjacent-4 { color: #bba1f2; }
 :root[data-theme='dark'] .mine-cell.adjacent-5 { color: #eda18a; }
 :root[data-theme='dark'] .mine-cell.adjacent-6 { color: #76d9d9; }
+
+:root[data-theme] .mine-cell.flagged {
+  color: var(--coral);
+}
+
+:root[data-theme] .mine-cell.questioned {
+  color: var(--forest);
+}
+
+:root[data-theme] .mine-cell.open.actual-mine {
+  color: var(--danger);
+}
 
 .mine-message,
 .shisen-message {

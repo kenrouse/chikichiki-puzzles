@@ -4,10 +4,10 @@ import {
   countOpenedSafeCells,
   countFlags,
   createMineBoard,
+  cycleMineMark,
   getMineNeighbors,
   isMineBoardSolvableWithoutGuess,
   revealMineCell,
-  toggleMineFlag,
 } from './engine'
 
 describe('Minesweeper engine', () => {
@@ -51,16 +51,32 @@ describe('Minesweeper engine', () => {
     expect(isMineBoardSolvableWithoutGuess(board, firstMove)).toBe(true)
   })
 
-  test('toggles flags without opening the cell', () => {
+  test('cycles hidden, flag, question, and hidden without opening the cell', () => {
     const initial = createMineBoard(
       { width: 10, height: 10, mineCount: 10 },
       1,
     )
-    const flagged = toggleMineFlag(initial, 12)
+    const flagged = cycleMineMark(initial, 12)
+    const questioned = cycleMineMark(flagged, 12)
+    const cleared = cycleMineMark(questioned, 12)
 
     expect(flagged.cells[12].state).toBe('flagged')
     expect(countFlags(flagged)).toBe(1)
-    expect(toggleMineFlag(flagged, 12).cells[12].state).toBe('hidden')
+    expect(questioned.cells[12].state).toBe('questioned')
+    expect(countFlags(questioned)).toBe(0)
+    expect(cleared.cells[12].state).toBe('hidden')
+  })
+
+  test('opens a question-marked cell with a normal reveal', () => {
+    const initial = createMineBoard(
+      { width: 10, height: 10, mineCount: 10 },
+      15,
+    )
+    const questioned = cycleMineMark(cycleMineMark(initial, 44), 44)
+    const revealed = revealMineCell(questioned, 44)
+
+    expect(revealed.cells[44].state).toBe('open')
+    expect(revealed.cells[44].mine).toBe(false)
   })
 
   test('detects a win and a mine hit', () => {

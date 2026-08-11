@@ -5,7 +5,15 @@ import {
   type CSSProperties,
   type PointerEvent,
 } from 'react'
-import { Bomb, Flag, RefreshCw, ShieldCheck, ZoomIn, ZoomOut } from 'lucide-react'
+import {
+  Bomb,
+  CircleQuestionMark,
+  Flag,
+  RefreshCw,
+  ShieldCheck,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react'
 import {
   ConfirmationModal,
   CountdownOverlay,
@@ -21,8 +29,8 @@ import {
   countOpenedSafeCells,
   countFlags,
   createMineBoard,
+  cycleMineMark,
   revealMineCell,
-  toggleMineFlag,
   type MineBoard,
   type MineConfiguration,
   type MineGenerationMode,
@@ -128,6 +136,7 @@ function describeCell(board: MineBoard, index: number): string {
   const cell = board.cells[index]
   if (board.detonatedIndex === index) return `行${row} 列${column} 踏んだ地雷`
   if (cell.state === 'flagged') return `行${row} 列${column} 旗`
+  if (cell.state === 'questioned') return `行${row} 列${column} はてなマーク`
   if (cell.state === 'hidden') return `行${row} 列${column} 未開封`
   if (cell.mine) return `行${row} 列${column} 地雷`
   return `行${row} 列${column} 周囲の地雷${cell.adjacent}`
@@ -275,13 +284,20 @@ export function MinesweeperGame() {
     }
   }
 
-  function toggleFlag(index: number): void {
+  function cycleMark(index: number): void {
     if (isCountingDown) {
       return
     }
-    const nextBoard = toggleMineFlag(board, index)
+    const nextBoard = cycleMineMark(board, index)
     if (nextBoard !== board) {
-      playEffect('flag')
+      const nextState = nextBoard.cells[index].state
+      playEffect(
+        nextState === 'flagged'
+          ? 'flag'
+          : nextState === 'questioned'
+            ? 'select'
+            : 'undo',
+      )
       setSession({ ...session, board: nextBoard })
     }
   }
@@ -295,7 +311,7 @@ export function MinesweeperGame() {
     }
     longPressTimer.current = window.setTimeout(() => {
       longPressedIndex.current = index
-      toggleFlag(index)
+      cycleMark(index)
       navigator.vibrate?.(30)
     }, 450)
   }
@@ -424,6 +440,10 @@ export function MinesweeperGame() {
           <Flag aria-hidden="true" fill="currentColor" />
           <strong>旗</strong> 地雷候補・正誤未判定
         </span>
+        <span className="question-legend" data-tooltip="地雷か判断できないマスの仮マーク。MINE残数には数えません">
+          <CircleQuestionMark aria-hidden="true" />
+          <strong>?</strong> 判断保留
+        </span>
         <span className="mine-legend-item" data-tooltip="ゲーム終了時に赤く表示される、実際に配置された地雷">
           <Bomb aria-hidden="true" />
           <strong>赤い爆弾</strong> 実際の地雷
@@ -448,12 +468,12 @@ export function MinesweeperGame() {
           {board.cells.map((cell, index) => (
             <button
               aria-label={describeCell(board, index)}
-              className={`mine-cell ${cell.state} adjacent-${cell.adjacent} ${board.detonatedIndex === index ? 'detonated' : ''}`}
+              className={`mine-cell ${cell.state} adjacent-${cell.adjacent} ${cell.state === 'open' && cell.mine ? 'actual-mine' : ''} ${board.detonatedIndex === index ? 'detonated' : ''}`}
               key={index}
               onClick={() => reveal(index)}
               onContextMenu={(event) => {
                 event.preventDefault()
-                toggleFlag(index)
+                cycleMark(index)
               }}
               onPointerCancel={cancelLongPress}
               onPointerDown={(event) => beginLongPress(event, index)}
@@ -464,6 +484,8 @@ export function MinesweeperGame() {
             >
               {cell.state === 'flagged' ? (
                 <Flag aria-hidden="true" fill="currentColor" />
+              ) : cell.state === 'questioned' ? (
+                <span aria-hidden="true" className="question-mark">?</span>
               ) : cell.state === 'open' && cell.mine ? (
                 <Bomb aria-hidden="true" />
               ) : cell.state === 'open' && cell.adjacent > 0 ? (
@@ -500,7 +522,7 @@ export function MinesweeperGame() {
         ) : board.status === 'ready' ? (
           <><strong>READY</strong><span>{board.generationMode === 'guess-free' ? '最初の一手から、推測せずに完走できる盤面を生成します。' : '最初に開くマスと、その周囲には地雷がありません。'}</span></>
         ) : (
-          <><strong>PLAYING</strong><span>右クリックまたは長押しで旗。数字を再度押すと周囲を開きます。</span></>
+          <><strong>PLAYING</strong><span>右クリックまたは長押しで、旗 → ? → 解除。数字を再度押すと周囲を開きます。</span></>
         )}
       </div>
       <ResultModal

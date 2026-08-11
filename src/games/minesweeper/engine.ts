@@ -1,4 +1,4 @@
-export type MineCellState = 'hidden' | 'open' | 'flagged'
+export type MineCellState = 'hidden' | 'open' | 'flagged' | 'questioned'
 export type MineGameStatus = 'ready' | 'playing' | 'won' | 'lost'
 export type MineGenerationMode = 'classic' | 'guess-free'
 
@@ -313,7 +313,7 @@ function openFrom(board: MineBoard, startIndexes: number[]): MineBoard {
       break
     }
     const cell = cells[index]
-    if (cell.state !== 'hidden') {
+    if (cell.state === 'open' || cell.state === 'flagged') {
       continue
     }
     cell.state = 'open'
@@ -327,7 +327,8 @@ function openFrom(board: MineBoard, startIndexes: number[]): MineBoard {
     if (cell.adjacent === 0) {
       for (const neighborIndex of getMineNeighbors(board, index)) {
         if (
-          cells[neighborIndex].state === 'hidden' &&
+          cells[neighborIndex].state !== 'open' &&
+          cells[neighborIndex].state !== 'flagged' &&
           !queued.has(neighborIndex)
         ) {
           queue.push(neighborIndex)
@@ -376,7 +377,7 @@ export function revealMineCell(board: MineBoard, index: number): MineBoard {
   return openFrom(generatedBoard, [index])
 }
 
-export function toggleMineFlag(board: MineBoard, index: number): MineBoard {
+export function cycleMineMark(board: MineBoard, index: number): MineBoard {
   if (board.status === 'lost' || board.status === 'won') {
     return board
   }
@@ -385,7 +386,11 @@ export function toggleMineFlag(board: MineBoard, index: number): MineBoard {
     return board
   }
   const cells = board.cells.map((cell) => ({ ...cell }))
-  cells[index].state = selected.state === 'flagged' ? 'hidden' : 'flagged'
+  cells[index].state = selected.state === 'hidden'
+    ? 'flagged'
+    : selected.state === 'flagged'
+      ? 'questioned'
+      : 'hidden'
   return { ...board, cells }
 }
 
