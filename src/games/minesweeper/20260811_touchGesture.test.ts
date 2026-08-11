@@ -1,7 +1,17 @@
 import { describe, expect, test } from 'vitest'
-import { isTouchSwipe, TOUCH_SWIPE_THRESHOLD } from './20260811_touchGesture'
+import {
+  isTouchSwipe,
+  supportsLongPress,
+  TOUCH_SWIPE_THRESHOLD,
+} from './20260811_touchGesture'
 
 describe('Minesweeper touch gesture', () => {
+  test('supports long press for touch and pen but not mouse', () => {
+    expect(supportsLongPress('touch')).toBe(true)
+    expect(supportsLongPress('pen')).toBe(true)
+    expect(supportsLongPress('mouse')).toBe(false)
+  })
+
   test('treats small finger movement as a tap', () => {
     expect(isTouchSwipe(100, 100, 106, 107)).toBe(false)
   })

@@ -25,7 +25,7 @@ import {
 import { formatElapsedTime, useStoredState } from '../../lib/storage'
 import { GameShareButton } from '../../share/20260811_GameShare'
 import { readSharedGameParameters } from '../../share/20260811_seededGameUrl'
-import { isTouchSwipe } from './20260811_touchGesture'
+import { isTouchSwipe, supportsLongPress } from './20260811_touchGesture'
 import {
   calculateMineCascadeScore,
   countOpenedSafeCells,
@@ -178,6 +178,8 @@ export function MinesweeperGame() {
   const touchGesture = useRef<TouchGesture | null>(null)
   const suppressTouchClickIndex = useRef<number | null>(null)
   const suppressTouchClickTimer = useRef<number | null>(null)
+  const suppressContextMenuIndex = useRef<number | null>(null)
+  const suppressContextMenuTimer = useRef<number | null>(null)
   const cascadeTimer = useRef<number | null>(null)
   const cascadeId = useRef(0)
   const { playEffect } = useAppExperience()
@@ -231,6 +233,9 @@ export function MinesweeperGame() {
       }
       if (suppressTouchClickTimer.current !== null) {
         window.clearTimeout(suppressTouchClickTimer.current)
+      }
+      if (suppressContextMenuTimer.current !== null) {
+        window.clearTimeout(suppressContextMenuTimer.current)
       }
     },
     [],
@@ -326,7 +331,7 @@ export function MinesweeperGame() {
     event: PointerEvent<HTMLButtonElement>,
     index: number,
   ): void {
-    if (event.pointerType !== 'touch') {
+    if (!supportsLongPress(event.pointerType)) {
       return
     }
     touchGesture.current = {
@@ -341,6 +346,16 @@ export function MinesweeperGame() {
         return
       }
       longPressedIndex.current = index
+      suppressContextMenuIndex.current = index
+      if (suppressContextMenuTimer.current !== null) {
+        window.clearTimeout(suppressContextMenuTimer.current)
+      }
+      suppressContextMenuTimer.current = window.setTimeout(() => {
+        if (suppressContextMenuIndex.current === index) {
+          suppressContextMenuIndex.current = null
+        }
+        suppressContextMenuTimer.current = null
+      }, 1200)
       cycleMark(index)
       navigator.vibrate?.(30)
     }, 450)
@@ -349,7 +364,7 @@ export function MinesweeperGame() {
   function trackTouchSwipe(event: PointerEvent<HTMLButtonElement>): void {
     const gesture = touchGesture.current
     if (
-      event.pointerType !== 'touch' ||
+      !supportsLongPress(event.pointerType) ||
       !gesture ||
       gesture.pointerId !== event.pointerId ||
       gesture.swiping
@@ -383,7 +398,7 @@ export function MinesweeperGame() {
   }
 
   function finishTouchGesture(event: PointerEvent<HTMLButtonElement>): void {
-    if (event.pointerType === 'touch') {
+    if (supportsLongPress(event.pointerType)) {
       const gesture = touchGesture.current
       if (gesture?.pointerId === event.pointerId && gesture.swiping) {
         suppressTouchClickIndex.current = gesture.index
@@ -552,6 +567,9 @@ export function MinesweeperGame() {
               onClick={() => reveal(index)}
               onContextMenu={(event) => {
                 event.preventDefault()
+                if (suppressContextMenuIndex.current === index) {
+                  return
+                }
                 cycleMark(index)
               }}
               onPointerCancel={finishTouchGesture}
