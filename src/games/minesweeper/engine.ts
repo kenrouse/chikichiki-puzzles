@@ -209,3 +209,25 @@ export function toggleMineFlag(board: MineBoard, index: number): MineBoard {
 export function countFlags(board: MineBoard): number {
   return board.cells.filter((cell) => cell.state === 'flagged').length
 }
+
+export interface MineCascadeScore {
+  intensity: number
+  openedCells: number
+  points: number
+}
+
+export function countOpenedSafeCells(board: MineBoard): number {
+  return board.cells.filter((cell) => cell.state === 'open' && !cell.mine).length
+}
+
+export function calculateMineCascadeScore(openedCells: number): MineCascadeScore {
+  if (openedCells <= 0) {
+    return { intensity: 0, openedCells: 0, points: 0 }
+  }
+  const intensity = Math.min(6, 1 + Math.floor(Math.log2(openedCells)))
+  return {
+    intensity,
+    openedCells,
+    points: openedCells * 10 * intensity,
+  }
+}

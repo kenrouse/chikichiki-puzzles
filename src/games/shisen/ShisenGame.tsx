@@ -1,12 +1,21 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Lightbulb, RefreshCw, RotateCcw, Shuffle } from 'lucide-react'
+import {
+  CountdownOverlay,
+  ResultModal,
+  useAppExperience,
+  useGameCountdown,
+} from '../../experience/20260811_AppExperience'
 import { formatElapsedTime, useStoredState } from '../../lib/storage'
+import { GameShareButton } from '../../share/20260811_GameShare'
+import { readSharedGameParameters } from '../../share/20260811_seededGameUrl'
 import {
   createShisenBoard,
   findShisenHint,
   removeShisenPair,
   reshuffleShisen,
   type ShisenBoard,
+  type ShisenDifficulty,
   type ShisenPair,
   type ShisenPoint,
 } from './engine'
@@ -14,8 +23,15 @@ import {
 interface ShisenSession {
   board: ShisenBoard
   elapsedSeconds: number
+  initialRating: number
   removedPairs: number
   shuffleCount: number
+}
+
+const DIFFICULTY_LABELS: Record<ShisenDifficulty, string> = {
+  relaxed: 'ゆったり',
+  standard: '標準',
+  expert: '達人',
 }
 
 const TILE_GLYPHS = [
@@ -32,31 +48,72 @@ const TILE_LABELS = [
   '東', '南', '西', '北', '中', '發', '白',
 ]
 
-function createSession(): ShisenSession {
+function isShisenDifficulty(value: string | null): value is ShisenDifficulty {
+  return value === 'relaxed' || value === 'standard' || value === 'expert'
+}
+
+function createSession(
+  difficulty: ShisenDifficulty = 'standard',
+  seed = Date.now() >>> 0,
+): ShisenSession {
+  const board = createShisenBoard(seed, difficulty)
   return {
-    board: createShisenBoard(Date.now() >>> 0),
+    board,
     elapsedSeconds: 0,
+    initialRating: board.analysis.rating,
     removedPairs: 0,
     shuffleCount: 0,
   }
 }
 
+function createInitialSession(): ShisenSession {
+  const shared = readSharedGameParameters('shisen')
+  const requestedDifficulty = shared?.difficulty ?? null
+  const difficulty: ShisenDifficulty = isShisenDifficulty(requestedDifficulty)
+    ? requestedDifficulty
+    : 'standard'
+  return createSession(difficulty, shared?.seed)
+}
+
+function getShisenGrade(session: ShisenSession): string {
+  const penalty = session.elapsedSeconds + session.shuffleCount * 120
+  if (penalty < 360) return 'S'
+  if (penalty < 720) return 'A'
+  if (penalty < 1200) return 'B'
+  return 'C'
+}
+
 export function ShisenGame() {
   const [session, setSession] = useStoredState<ShisenSession>(
-    'chikichiki:shisen:v1',
-    createSession,
+    'chikichiki:shisen:v3',
+    createInitialSession,
   )
   const [selected, setSelected] = useState<number | null>(null)
   const [hint, setHint] = useState<ShisenPair | null>(null)
   const [path, setPath] = useState<ShisenPoint[] | null>(null)
   const [history, setHistory] = useState<ShisenBoard[]>([])
   const [notice, setNotice] = useState<'playing' | 'miss' | 'hint'>('playing')
+  const [missedTiles, setMissedTiles] = useState<number[]>([])
+  const [resultOpen, setResultOpen] = useState(session.board.status === 'won')
   const pathTimer = useRef<number | null>(null)
+  const missTimer = useRef<number | null>(null)
+  const loadedShare = useRef<string | null>(null)
+  const { playEffect } = useAppExperience()
+  const { countdown, isCountingDown, restartCountdown } = useGameCountdown(
+    session.elapsedSeconds === 0 && session.board.status === 'playing',
+  )
+  const shared = readSharedGameParameters('shisen')
+  const requestedDifficulty = shared?.difficulty ?? null
+  const sharedDifficulty: ShisenDifficulty = isShisenDifficulty(requestedDifficulty)
+    ? requestedDifficulty
+    : 'standard'
+  const sharedSeed = shared?.seed ?? null
+  const sharedKey = sharedSeed === null ? null : `${sharedSeed}:${sharedDifficulty}`
   const board = session.board
   const remaining = board.tiles.filter((tile) => tile !== null).length
 
   useEffect(() => {
-    if (board.status !== 'playing') {
+    if (board.status !== 'playing' || isCountingDown) {
       return
     }
     const timer = window.setInterval(() => {
@@ -66,34 +123,62 @@ export function ShisenGame() {
       }))
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [board.status, setSession])
+  }, [board.status, isCountingDown, setSession])
+
+  useEffect(() => {
+    if (sharedSeed === null || !sharedKey || loadedShare.current === sharedKey) {
+      return
+    }
+    loadedShare.current = sharedKey
+    setSession(createSession(sharedDifficulty, sharedSeed))
+    setSelected(null)
+    setHint(null)
+    setPath(null)
+    setHistory([])
+    setMissedTiles([])
+    setResultOpen(false)
+    setNotice('playing')
+    restartCountdown()
+  }, [restartCountdown, setSession, sharedDifficulty, sharedKey, sharedSeed])
 
   useEffect(
     () => () => {
       if (pathTimer.current !== null) {
         window.clearTimeout(pathTimer.current)
       }
+      if (missTimer.current !== null) {
+        window.clearTimeout(missTimer.current)
+      }
     },
     [],
   )
 
-  function startNewGame(): void {
-    setSession(createSession())
+  function startNewGame(difficulty: ShisenDifficulty = board.difficulty): void {
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${window.location.search}#/shisen`,
+    )
+    setSession(createSession(difficulty))
     setSelected(null)
     setHint(null)
     setPath(null)
     setHistory([])
     setNotice('playing')
+    setMissedTiles([])
+    setResultOpen(false)
+    restartCountdown()
   }
 
   function selectTile(index: number): void {
-    if (board.status === 'won' || board.tiles[index] === null) {
+    if (board.status === 'won' || board.tiles[index] === null || isCountingDown) {
       return
     }
     setHint(null)
     if (selected === null) {
       setSelected(index)
       setNotice('playing')
+      playEffect('select')
       return
     }
     if (selected === index) {
@@ -103,8 +188,16 @@ export function ShisenGame() {
 
     const result = removeShisenPair(board, selected, index)
     if (!result.path) {
+      const first = selected
       setSelected(index)
       setNotice('miss')
+      setMissedTiles([first, index])
+      playEffect('error')
+      navigator.vibrate?.([35, 25, 35])
+      if (missTimer.current !== null) {
+        window.clearTimeout(missTimer.current)
+      }
+      missTimer.current = window.setTimeout(() => setMissedTiles([]), 620)
       return
     }
 
@@ -116,8 +209,15 @@ export function ShisenGame() {
     }))
     setSelected(null)
     setNotice('playing')
+    setMissedTiles([])
     setPath(result.path)
-    navigator.vibrate?.(20)
+    navigator.vibrate?.(result.board.status === 'won' ? [35, 35, 70] : 20)
+    if (result.board.status === 'won') {
+      setResultOpen(true)
+      playEffect('clear')
+    } else {
+      playEffect('match')
+    }
     if (pathTimer.current !== null) {
       window.clearTimeout(pathTimer.current)
     }
@@ -132,6 +232,7 @@ export function ShisenGame() {
     setHint(nextHint)
     setSelected(null)
     setNotice('hint')
+    playEffect('hint')
   }
 
   function shuffleRemaining(): void {
@@ -148,6 +249,8 @@ export function ShisenGame() {
     setHint(null)
     setPath(null)
     setNotice('playing')
+    setMissedTiles([])
+    playEffect('start')
   }
 
   function undo(): void {
@@ -164,6 +267,8 @@ export function ShisenGame() {
     setSelected(null)
     setHint(null)
     setPath(null)
+    setMissedTiles([])
+    playEffect('undo')
   }
 
   const shellStyle = {
@@ -172,7 +277,8 @@ export function ShisenGame() {
   } as CSSProperties
 
   return (
-    <section className="game-workspace shisen-workspace" aria-labelledby="shisen-title">
+    <section className={`game-workspace shisen-workspace ${isCountingDown ? 'game-paused' : ''}`} aria-labelledby="shisen-title">
+      <CountdownOverlay value={countdown} />
       <header className="game-heading">
         <div>
           <p className="eyebrow">2009 / FOR YUKA</p>
@@ -182,14 +288,37 @@ export function ShisenGame() {
           <span><strong>{formatElapsedTime(session.elapsedSeconds)}</strong> TIME</span>
           <span><strong>{remaining}</strong> LEFT</span>
           <span><strong>{session.removedPairs}</strong> PAIR</span>
+          <span><strong>{board.analysis.legalMoves}</strong> MOVES</span>
+          <span><strong>{board.analysis.rating}</strong> RATING</span>
         </div>
       </header>
 
       <div className="difficulty-row shisen-controls">
-        <p>同じ牌を、2回以内に曲がる線で結びます。</p>
+        <div className="segmented-control" aria-label="難易度">
+          {(Object.keys(DIFFICULTY_LABELS) as ShisenDifficulty[]).map(
+            (difficulty) => (
+              <button
+                aria-pressed={board.difficulty === difficulty}
+                className={board.difficulty === difficulty ? 'active' : ''}
+                key={difficulty}
+                onClick={() => startNewGame(difficulty)}
+                type="button"
+              >
+                {DIFFICULTY_LABELS[difficulty]}
+              </button>
+            ),
+          )}
+        </div>
         <div className="toolbar-inline">
+          <GameShareButton
+            difficulty={board.difficulty}
+            game="shisen"
+            seed={board.seed}
+            title="四川省"
+          />
           <button
             aria-label="元に戻す"
+            data-tooltip="直前に消した牌を戻す"
             disabled={history.length === 0}
             onClick={undo}
             title="元に戻す"
@@ -199,6 +328,7 @@ export function ShisenGame() {
           </button>
           <button
             aria-label="ヒント"
+            data-tooltip="現在消せる牌を2枚光らせる"
             onClick={showHint}
             title="消せる牌を表示"
             type="button"
@@ -207,20 +337,21 @@ export function ShisenGame() {
           </button>
           <button
             aria-label="残りの牌を並べ替える"
+            data-tooltip="残りを必ず解ける配置へ並べ替える"
             onClick={shuffleRemaining}
             title="必ず解ける配置へ並べ替え"
             type="button"
           >
             <Shuffle aria-hidden="true" />
           </button>
-          <button className="command-button" onClick={startNewGame} type="button">
+          <button className="command-button" onClick={() => startNewGame()} type="button">
             <RefreshCw aria-hidden="true" size={17} /> 新しい配牌
           </button>
         </div>
       </div>
 
       <div className="shisen-scroll" tabIndex={0} aria-label="スクロール可能な四川省盤面">
-        <div className="shisen-shell" style={shellStyle}>
+        <div className={`shisen-shell ${missedTiles.length > 0 ? 'miss-reaction' : ''}`} style={shellStyle}>
           <div className="shisen-mat" aria-hidden="true" />
           {board.tiles.map((tile, index) => {
             if (tile === null) {
@@ -235,11 +366,13 @@ export function ShisenGame() {
               height: `${100 / (board.height + 2)}%`,
             }
             const isHint = hint?.first === index || hint?.second === index
+            const isMissed = missedTiles.includes(index)
             return (
               <button
                 aria-label={`${TILE_LABELS[tile]} 行${row + 1} 列${column + 1}`}
                 aria-pressed={selected === index}
-                className={`shisen-tile family-${Math.floor(tile / 9)} ${selected === index ? 'selected' : ''} ${isHint ? 'hint' : ''}`}
+                className={`shisen-tile family-${Math.floor(tile / 9)} ${selected === index ? 'selected' : ''} ${isHint ? 'hint' : ''} ${isMissed ? 'missed' : ''}`}
+                data-shisen-index={index}
                 key={index}
                 onClick={() => selectTile(index)}
                 style={tileStyle}
@@ -266,7 +399,7 @@ export function ShisenGame() {
 
       <div className={`game-message shisen-message ${board.status === 'won' ? 'success' : notice === 'miss' ? 'warning' : ''}`} aria-live="polite">
         {board.status === 'won' ? (
-          <><strong>CLEAR!</strong><span>136枚、すべて取り切りました。</span></>
+          <><strong>CLEAR!</strong><span>すべての牌を取り切りました。</span></>
         ) : notice === 'miss' ? (
           <><strong>NO LINE</strong><span>その2枚は結べません。次の牌を選びました。</span></>
         ) : notice === 'hint' ? (
@@ -277,6 +410,22 @@ export function ShisenGame() {
           <><strong>PLAYING</strong><span>盤外を通る経路も使えます。</span></>
         )}
       </div>
+      <ResultModal
+        grade={getShisenGrade(session)}
+        onClose={() => setResultOpen(false)}
+        onPrimary={() => startNewGame(board.difficulty)}
+        open={resultOpen}
+        primaryLabel="次の配牌"
+        stats={[
+          { label: 'TIME', value: formatElapsedTime(session.elapsedSeconds) },
+          { label: 'DIFFICULTY', value: DIFFICULTY_LABELS[board.difficulty] },
+          { label: 'PAIRS', value: String(session.removedPairs) },
+          { label: 'RATING', value: String(session.initialRating) },
+          { label: 'SHUFFLE', value: String(session.shuffleCount) },
+        ]}
+        subtitle="同じ牌をすべて結び切りました。"
+        title="四川省クリア"
+      />
     </section>
   )
 }

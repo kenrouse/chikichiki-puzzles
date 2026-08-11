@@ -1,0 +1,41 @@
+import { describe, expect, test } from 'vitest'
+import { buildSeededGameUrl, parseSharedGameHash } from './20260811_seededGameUrl'
+
+describe('seeded game sharing', () => {
+  test('builds a project-pages URL with deterministic parameters', () => {
+    expect(
+      buildSeededGameUrl(
+        'https://kenrouse.github.io/chikichiki-puzzles/#/guide',
+        'sudoku',
+        4294967295,
+        'expert',
+      ),
+    ).toBe(
+      'https://kenrouse.github.io/chikichiki-puzzles/#/sudoku?difficulty=expert&seed=4294967295',
+    )
+  })
+
+  test('parses valid seeds and rejects invalid values', () => {
+    expect(parseSharedGameHash('#/shisen?difficulty=expert&seed=20090101')).toEqual({
+      difficulty: 'expert',
+      firstMove: null,
+      game: 'shisen',
+      seed: 20090101,
+    })
+    expect(parseSharedGameHash('#/sudoku?seed=-1')).toBeNull()
+    expect(parseSharedGameHash('#/sudoku?seed=4294967296')).toBeNull()
+    expect(parseSharedGameHash('#/guide?seed=1')).toBeNull()
+  })
+
+  test('preserves the Minesweeper first safe move', () => {
+    const url = buildSeededGameUrl(
+      'https://kenrouse.github.io/chikichiki-puzzles/',
+      'minesweeper',
+      77,
+      'beginner',
+      { first: 44 },
+    )
+    expect(url).toContain('first=44')
+    expect(parseSharedGameHash(new URL(url).hash)?.firstMove).toBe(44)
+  })
+})

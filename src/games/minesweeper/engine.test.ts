@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
+  calculateMineCascadeScore,
+  countOpenedSafeCells,
   countFlags,
   createMineBoard,
   getMineNeighbors,
@@ -59,5 +61,32 @@ describe('Minesweeper engine', () => {
     const mineIndex = playing.cells.findIndex((cell) => cell.mine)
     const lost = revealMineCell(playing, mineIndex)
     expect(lost.status).toBe('lost')
+  })
+
+  test('rewards larger reveal cascades with stronger multipliers', () => {
+    expect(calculateMineCascadeScore(0)).toEqual({
+      intensity: 0,
+      openedCells: 0,
+      points: 0,
+    })
+    expect(calculateMineCascadeScore(1).points).toBe(10)
+    expect(calculateMineCascadeScore(8)).toEqual({
+      intensity: 4,
+      openedCells: 8,
+      points: 320,
+    })
+    expect(calculateMineCascadeScore(2).intensity).toBe(2)
+    expect(calculateMineCascadeScore(16).intensity).toBe(5)
+    expect(calculateMineCascadeScore(128).intensity).toBe(6)
+    expect(calculateMineCascadeScore(100).intensity).toBe(6)
+  })
+
+  test('counts only opened safe cells', () => {
+    const board = revealMineCell(
+      createMineBoard({ width: 10, height: 10, mineCount: 10 }, 99),
+      44,
+    )
+    expect(countOpenedSafeCells(board)).toBeGreaterThan(0)
+    expect(countOpenedSafeCells(board)).toBeLessThanOrEqual(90)
   })
 })

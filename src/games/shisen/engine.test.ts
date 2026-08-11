@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
+  analyzeShisenBoard,
   createShisenBoard,
   findShisenHint,
   findShisenPath,
@@ -14,6 +15,14 @@ describe('Shisen engine', () => {
     tiles[0] = 3
     tiles[3] = 3
     const board: ShisenBoard = {
+      analysis: {
+        legalMoves: 1,
+        outsideMoves: 0,
+        rating: 1,
+        remainingPairs: 2,
+        twoTurnMoves: 0,
+      },
+      difficulty: 'standard',
       width: 4,
       height: 4,
       seed: 1,
@@ -46,6 +55,7 @@ describe('Shisen engine', () => {
     expect(counts.size).toBe(34)
     expect([...counts.values()].every((count) => count === 4)).toBe(true)
     expect(findShisenHint(board)).not.toBeNull()
+    expect(board.analysis).toEqual(analyzeShisenBoard(board))
 
     for (const pair of board.solution) {
       const result = removeShisenPair(board, pair.first, pair.second)
@@ -67,6 +77,17 @@ describe('Shisen engine', () => {
       expect(board.status).toBe('won')
     },
   )
+
+  test('creates distinct mobility-rated difficulty levels', () => {
+    const relaxed = createShisenBoard(20260811, 'relaxed')
+    const expert = createShisenBoard(20260811, 'expert')
+
+    expect(relaxed.tiles).toHaveLength(72)
+    expect(expert.tiles).toHaveLength(180)
+    expect(expert.analysis.rating).toBeGreaterThan(relaxed.analysis.rating)
+    expect(relaxed.seed).toBe(20260811)
+    expect(expert.seed).toBe(20260811)
+  })
 
   test('reshuffles remaining tiles into another solvable layout', () => {
     const initial = createShisenBoard(42)

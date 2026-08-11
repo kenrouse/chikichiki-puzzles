@@ -8,7 +8,19 @@ export interface ShisenPair {
   second: number
 }
 
+export type ShisenDifficulty = 'relaxed' | 'standard' | 'expert'
+
+export interface ShisenAnalysis {
+  legalMoves: number
+  outsideMoves: number
+  rating: number
+  remainingPairs: number
+  twoTurnMoves: number
+}
+
 export interface ShisenBoard {
+  analysis: ShisenAnalysis
+  difficulty: ShisenDifficulty
   height: number
   seed: number
   solution: ShisenPair[]
@@ -30,6 +42,15 @@ const DIRECTIONS = [
 ] as const
 
 type RandomSource = () => number
+
+const SHISEN_CONFIGURATIONS: Record<
+  ShisenDifficulty,
+  { attempts: number; height: number; tileTypes: number; width: number }
+> = {
+  relaxed: { attempts: 4, height: 6, tileTypes: 18, width: 12 },
+  standard: { attempts: 2, height: 8, tileTypes: 34, width: 17 },
+  expert: { attempts: 5, height: 10, tileTypes: 34, width: 18 },
+}
 
 interface SearchState {
   direction: number
@@ -184,6 +205,58 @@ export function findShisenPath(
   )
 }
 
+export function analyzeShisenBoard(
+  board: Pick<ShisenBoard, 'height' | 'tiles' | 'width'>,
+): ShisenAnalysis {
+  const positionsByTile = new Map<number, number[]>()
+  board.tiles.forEach((tile, index) => {
+    if (tile === null) {
+      return
+    }
+    const positions = positionsByTile.get(tile) ?? []
+    positions.push(index)
+    positionsByTile.set(tile, positions)
+  })
+
+  let legalMoves = 0
+  let outsideMoves = 0
+  let twoTurnMoves = 0
+  for (const positions of positionsByTile.values()) {
+    for (let firstOffset = 0; firstOffset < positions.length; firstOffset += 1) {
+      for (let secondOffset = firstOffset + 1; secondOffset < positions.length; secondOffset += 1) {
+        const path = findShisenPath(board, positions[firstOffset], positions[secondOffset])
+        if (!path) {
+          continue
+        }
+        legalMoves += 1
+        if (path.length - 2 === 2) {
+          twoTurnMoves += 1
+        }
+        if (
+          path.some(
+            (point) =>
+              point.x === 0 ||
+              point.y === 0 ||
+              point.x === board.width + 1 ||
+              point.y === board.height + 1,
+          )
+        ) {
+          outsideMoves += 1
+        }
+      }
+    }
+  }
+
+  const remainingPairs = board.tiles.filter((tile) => tile !== null).length / 2
+  const constrainedMobility = remainingPairs / Math.max(1, legalMoves)
+  const twoTurnRatio = twoTurnMoves / Math.max(1, legalMoves)
+  const outsideRatio = outsideMoves / Math.max(1, legalMoves)
+  const rating = Math.round(
+    constrainedMobility * 34 + twoTurnRatio * 85 + outsideRatio * 45,
+  )
+  return { legalMoves, outsideMoves, rating, remainingPairs, twoTurnMoves }
+}
+
 function buildRemovalOrder(
   initialOccupied: readonly boolean[],
   width: number,
@@ -252,11 +325,11 @@ function assignPairValues(
   return tiles
 }
 
-export function createShisenBoard(
+function createShisenCandidate(
   seed: number,
-  width = 17,
-  height = 8,
+  difficulty: ShisenDifficulty,
 ): ShisenBoard {
+  const { height, tileTypes, width } = SHISEN_CONFIGURATIONS[difficulty]
   const cellCount = width * height
   if (cellCount === 0 || cellCount % 2 !== 0) {
     throw new Error('Shisen boards must contain an even number of cells')
@@ -269,17 +342,42 @@ export function createShisenBoard(
     random,
   )
   const pairValues = shuffle(
-    Array.from({ length: cellCount / 2 }, (_, index) => index % 34),
+    Array.from({ length: cellCount / 2 }, (_, index) => index % tileTypes),
     random,
   )
+  const tiles = assignPairValues(solution, pairValues, cellCount)
   return {
+    analysis: analyzeShisenBoard({ height, tiles, width }),
+    difficulty,
     height,
     seed,
     solution,
     status: 'playing',
-    tiles: assignPairValues(solution, pairValues, cellCount),
+    tiles,
     width,
   }
+}
+
+export function createShisenBoard(
+  seed: number,
+  difficulty: ShisenDifficulty = 'standard',
+): ShisenBoard {
+  const { attempts } = SHISEN_CONFIGURATIONS[difficulty]
+  const candidates = Array.from({ length: attempts }, (_, attempt) =>
+    createShisenCandidate(
+      (seed + Math.imul(attempt, 0x9e3779b1)) >>> 0,
+      difficulty,
+    ),
+  )
+  const ranked = [...candidates].sort(
+    (first, second) => first.analysis.rating - second.analysis.rating,
+  )
+  const selected = difficulty === 'relaxed'
+    ? ranked[0]
+    : difficulty === 'expert'
+      ? ranked[ranked.length - 1]
+      : ranked[Math.floor(ranked.length / 2)]
+  return { ...selected, seed: seed >>> 0 }
 }
 
 export function removeShisenPair(
@@ -297,9 +395,15 @@ export function removeShisenPair(
   const tiles = [...board.tiles]
   tiles[first] = null
   tiles[second] = null
+  const analysis = analyzeShisenBoard({
+    height: board.height,
+    tiles,
+    width: board.width,
+  })
   return {
     board: {
       ...board,
+      analysis,
       status: tiles.every((tile) => tile === null) ? 'won' : 'playing',
       tiles,
     },
@@ -356,12 +460,18 @@ export function reshuffleShisen(board: ShisenBoard, seed: number): ShisenBoard {
     }),
     random,
   )
+  const tiles = assignPairValues(solution, pairValues, board.tiles.length)
 
   return {
     ...board,
+    analysis: analyzeShisenBoard({
+      height: board.height,
+      tiles,
+      width: board.width,
+    }),
     seed,
     solution,
     status: solution.length === 0 ? 'won' : 'playing',
-    tiles: assignPairValues(solution, pairValues, board.tiles.length),
+    tiles,
   }
 }

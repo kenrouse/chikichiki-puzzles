@@ -1,24 +1,29 @@
 import { useEffect, useState } from 'react'
 import {
   Bomb,
+  BookOpen,
   Code2,
   Download,
   Grid3X3,
   LayoutGrid,
-  Moon,
   RefreshCw,
-  Sun,
   X,
 } from 'lucide-react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
+import {
+  InteractionEffects,
+  SettingsButton,
+  SettingsPanel,
+  useAppExperience,
+} from './experience/20260811_AppExperience'
 import { MinesweeperGame } from './games/minesweeper/MinesweeperGame'
 import { ShisenGame } from './games/shisen/ShisenGame'
 import { SudokuGame } from './games/sudoku/SudokuGame'
-import { useStoredState } from './lib/storage'
+import { GuidePage } from './pages/20260811_GuidePage'
 import './App.css'
 
 type GameId = 'sudoku' | 'minesweeper' | 'shisen'
-type Theme = 'light' | 'dark'
+type ViewId = GameId | 'guide'
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -31,8 +36,11 @@ const GAMES = [
   { id: 'shisen' as const, label: '四川省', years: '2009', icon: LayoutGrid },
 ]
 
-function readGameFromHash(): GameId {
-  const candidate = window.location.hash.replace(/^#\/?/, '')
+function readViewFromHash(): ViewId {
+  const candidate = window.location.hash.replace(/^#\/?/, '').split('?', 1)[0]
+  if (candidate === 'guide') {
+    return 'guide'
+  }
   return GAMES.some((game) => game.id === candidate)
     ? (candidate as GameId)
     : 'sudoku'
@@ -85,22 +93,17 @@ function PwaStatus() {
 }
 
 function App() {
-  const [activeGame, setActiveGame] = useState<GameId>(readGameFromHash)
-  const [theme, setTheme] = useStoredState<Theme>('chikichiki:theme:v1', () =>
-    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
-  )
+  const [activeView, setActiveView] = useState<ViewId>(readViewFromHash)
   const [installPrompt, setInstallPrompt] =
     useState<InstallPromptEvent | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const { playEffect } = useAppExperience()
 
   useEffect(() => {
-    const handleHashChange = () => setActiveGame(readGameFromHash())
+    const handleHashChange = () => setActiveView(readViewFromHash())
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
 
   useEffect(() => {
     const handleInstallPrompt = (event: Event) => {
@@ -112,9 +115,10 @@ function App() {
       window.removeEventListener('beforeinstallprompt', handleInstallPrompt)
   }, [])
 
-  function selectGame(game: GameId): void {
-    window.location.hash = `/${game}`
-    setActiveGame(game)
+  function selectView(view: ViewId): void {
+    window.location.hash = `/${view}`
+    setActiveView(view)
+    playEffect('select')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -129,8 +133,9 @@ function App() {
 
   return (
     <div className="app-shell">
+      <InteractionEffects />
       <header className="app-header">
-        <a className="brand" href="#/sudoku" onClick={() => selectGame('sudoku')}>
+        <a className="brand" href="#/sudoku" onClick={() => selectView('sudoku')}>
           <img alt="" src={`${import.meta.env.BASE_URL}puzzle-mark.svg`} />
           <span>
             <strong>CHIKICHIKI</strong>
@@ -143,10 +148,10 @@ function App() {
             const Icon = game.icon
             return (
               <button
-                aria-selected={activeGame === game.id}
-                className={activeGame === game.id ? 'active' : ''}
+                aria-selected={activeView === game.id}
+                className={activeView === game.id ? 'active' : ''}
                 key={game.id}
-                onClick={() => selectGame(game.id)}
+                onClick={() => selectView(game.id)}
                 role="tab"
                 type="button"
               >
@@ -169,13 +174,16 @@ function App() {
             </button>
           ) : null}
           <button
-            aria-label={theme === 'dark' ? 'ライトテーマに切り替え' : 'ダークテーマに切り替え'}
-            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-            title="テーマ切り替え"
+            aria-label="ゲーム制作ノート"
+            className={activeView === 'guide' ? 'active' : ''}
+            data-tooltip="生成アルゴリズムと難易度設計"
+            onClick={() => selectView('guide')}
+            title="ゲーム制作ノート"
             type="button"
           >
-            {theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+            <BookOpen aria-hidden="true" />
           </button>
+          <SettingsButton onClick={() => setSettingsOpen(true)} />
           <a
             aria-label="GitHubでソースコードを開く"
             href="https://github.com/kenrouse/chikichiki-puzzles"
@@ -189,15 +197,18 @@ function App() {
       </header>
 
       <main>
-        {activeGame === 'sudoku' ? <SudokuGame /> : null}
-        {activeGame === 'minesweeper' ? <MinesweeperGame /> : null}
-        {activeGame === 'shisen' ? <ShisenGame /> : null}
+        {activeView === 'sudoku' ? <SudokuGame /> : null}
+        {activeView === 'minesweeper' ? <MinesweeperGame /> : null}
+        {activeView === 'shisen' ? <ShisenGame /> : null}
+        {activeView === 'guide' ? <GuidePage onBack={() => selectView('sudoku')} /> : null}
       </main>
 
       <footer className="app-footer">
         <span>ORIGINAL i-APPLI: 2006–2009</span>
+        <button onClick={() => selectView('guide')} type="button">ゲーム制作ノート</button>
         <span>OFFLINE READY / NO TRACKING / LOCAL SAVE</span>
       </footer>
+      <SettingsPanel onClose={() => setSettingsOpen(false)} open={settingsOpen} />
       <PwaStatus />
     </div>
   )

@@ -1,6 +1,16 @@
-export type SudokuDifficulty = 'easy' | 'normal' | 'hard'
+export type SudokuDifficulty = 'easy' | 'normal' | 'hard' | 'expert'
+
+export interface SudokuAnalysis {
+  clueCount: number
+  guessBranches: number
+  logicalPlacements: number
+  rating: number
+  searchNodes: number
+  unresolvedAfterLogic: number
+}
 
 export interface SudokuPuzzle {
+  analysis: SudokuAnalysis
   difficulty: SudokuDifficulty
   puzzle: number[]
   seed: number
@@ -12,6 +22,14 @@ const CLUE_TARGETS: Record<SudokuDifficulty, number> = {
   easy: 42,
   normal: 34,
   hard: 28,
+  expert: 24,
+}
+
+const GENERATION_ATTEMPTS: Record<SudokuDifficulty, number> = {
+  easy: 1,
+  normal: 2,
+  hard: 3,
+  expert: 6,
 }
 
 type RandomSource = () => number
@@ -87,6 +105,141 @@ function bitCount(mask: number): number {
   return count
 }
 
+function maskToDigit(mask: number): number {
+  for (let digit = 1; digit <= 9; digit += 1) {
+    if ((mask & (1 << digit)) !== 0) {
+      return digit
+    }
+  }
+  return 0
+}
+
+function createUnits(): number[][] {
+  const rows = Array.from({ length: 9 }, (_, row) =>
+    Array.from({ length: 9 }, (_, column) => row * 9 + column),
+  )
+  const columns = Array.from({ length: 9 }, (_, column) =>
+    Array.from({ length: 9 }, (_, row) => row * 9 + column),
+  )
+  const boxes = Array.from({ length: 9 }, (_, box) => {
+    const startRow = Math.floor(box / 3) * 3
+    const startColumn = (box % 3) * 3
+    return Array.from({ length: 9 }, (_, offset) =>
+      (startRow + Math.floor(offset / 3)) * 9 + startColumn + (offset % 3),
+    )
+  })
+  return [...rows, ...columns, ...boxes]
+}
+
+const SUDOKU_UNITS = createUnits()
+
+function findLogicalPlacement(board: readonly number[]): { index: number; value: number } | null {
+  for (let index = 0; index < board.length; index += 1) {
+    if (board[index] !== 0) {
+      continue
+    }
+    const mask = getCandidateMask(board, index)
+    if (bitCount(mask) === 1) {
+      return { index, value: maskToDigit(mask) }
+    }
+  }
+
+  for (const unit of SUDOKU_UNITS) {
+    for (let digit = 1; digit <= 9; digit += 1) {
+      const positions = unit.filter(
+        (index) =>
+          board[index] === 0 &&
+          (getCandidateMask(board, index) & (1 << digit)) !== 0,
+      )
+      if (positions.length === 1) {
+        return { index: positions[0], value: digit }
+      }
+    }
+  }
+  return null
+}
+
+function measureSearch(board: readonly number[]): { guessBranches: number; searchNodes: number } {
+  const working = [...board]
+  let guessBranches = 0
+  let searchNodes = 0
+
+  function search(): boolean {
+    searchNodes += 1
+    let bestIndex = -1
+    let bestMask = 0
+    let bestCount = 10
+
+    for (let index = 0; index < working.length; index += 1) {
+      if (working[index] !== 0) {
+        continue
+      }
+      const mask = getCandidateMask(working, index)
+      const candidateCount = bitCount(mask)
+      if (candidateCount === 0) {
+        return false
+      }
+      if (candidateCount < bestCount) {
+        bestIndex = index
+        bestMask = mask
+        bestCount = candidateCount
+      }
+    }
+
+    if (bestIndex === -1) {
+      return true
+    }
+    if (bestCount > 1) {
+      guessBranches += bestCount - 1
+    }
+    for (let digit = 1; digit <= 9; digit += 1) {
+      if ((bestMask & (1 << digit)) === 0) {
+        continue
+      }
+      working[bestIndex] = digit
+      if (search()) {
+        return true
+      }
+      working[bestIndex] = 0
+    }
+    working[bestIndex] = 0
+    return false
+  }
+
+  search()
+  return { guessBranches, searchNodes }
+}
+
+export function analyzeSudoku(board: readonly number[]): SudokuAnalysis {
+  const working = [...board]
+  const clueCount = working.filter((value) => value !== 0).length
+  let logicalPlacements = 0
+  while (true) {
+    const placement = findLogicalPlacement(working)
+    if (!placement) {
+      break
+    }
+    working[placement.index] = placement.value
+    logicalPlacements += 1
+  }
+  const unresolvedAfterLogic = working.filter((value) => value === 0).length
+  const { guessBranches, searchNodes } = measureSearch(working)
+  const rating = Math.round(
+    (81 - clueCount) * 1.6 +
+      unresolvedAfterLogic * 3.2 +
+      guessBranches * 24 +
+      Math.log2(searchNodes + 1) * 9,
+  )
+  return {
+    clueCount,
+    guessBranches,
+    logicalPlacements,
+    rating,
+    searchNodes,
+    unresolvedAfterLogic,
+  }
+}
+
 export function countSolutions(board: readonly number[], limit = 2): number {
   const working = [...board]
   let solutionCount = 0
@@ -141,7 +294,7 @@ export function countSolutions(board: readonly number[], limit = 2): number {
   return solutionCount
 }
 
-export function generateSudoku(
+function generateSudokuCandidate(
   difficulty: SudokuDifficulty,
   seed: number,
 ): SudokuPuzzle {
@@ -167,7 +320,35 @@ export function generateSudoku(
     }
   }
 
-  return { difficulty, puzzle, seed, solution }
+  return {
+    analysis: analyzeSudoku(puzzle),
+    difficulty,
+    puzzle,
+    seed,
+    solution,
+  }
+}
+
+export function generateSudoku(
+  difficulty: SudokuDifficulty,
+  seed: number,
+): SudokuPuzzle {
+  const candidates = Array.from(
+    { length: GENERATION_ATTEMPTS[difficulty] },
+    (_, attempt) =>
+      generateSudokuCandidate(
+        difficulty,
+        (seed + Math.imul(attempt, 0x9e3779b1)) >>> 0,
+      ),
+  )
+  const selected = difficulty === 'easy'
+    ? candidates.reduce((best, candidate) =>
+      candidate.analysis.rating < best.analysis.rating ? candidate : best,
+    )
+    : candidates.reduce((best, candidate) =>
+      candidate.analysis.rating > best.analysis.rating ? candidate : best,
+    )
+  return { ...selected, seed: seed >>> 0 }
 }
 
 export function getCandidates(
