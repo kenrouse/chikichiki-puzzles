@@ -26,6 +26,7 @@ import { formatElapsedTime, useStoredState } from '../../lib/storage'
 import { GameShareButton } from '../../share/20260811_GameShare'
 import { readSharedGameParameters } from '../../share/20260811_seededGameUrl'
 import { isTouchSwipe, supportsLongPress } from './20260811_touchGesture'
+import { updateBestTime } from './20260811_records'
 import {
   calculateMineCascadeScore,
   countOpenedSafeCells,
@@ -209,10 +210,11 @@ export function MinesweeperGame() {
     }
     setBestTimes((current) => {
       const previous = current[session.difficulty]
-      if (previous !== null && previous <= session.elapsedSeconds) {
+      const next = updateBestTime(previous, session.elapsedSeconds)
+      if (next === previous) {
         return current
       }
-      return { ...current, [session.difficulty]: session.elapsedSeconds }
+      return { ...current, [session.difficulty]: next }
     })
   }, [board.status, session.difficulty, session.elapsedSeconds, setBestTimes])
 
@@ -435,8 +437,16 @@ export function MinesweeperGame() {
           <span><strong>{session.score.toLocaleString()}</strong> SCORE</span>
           <span><strong>{board.mineCount - flags}</strong> MINE</span>
           <span>
+            <strong>
+              {bestTimes[session.difficulty] === null
+                ? '--:--'
+                : formatElapsedTime(bestTimes[session.difficulty] ?? 0)}
+            </strong>{' '}
+            BEST TIME
+          </span>
+          <span>
             <strong>{bestScores[session.difficulty].toLocaleString()}</strong>{' '}
-            BEST
+            BEST SCORE
           </span>
         </div>
       </header>
