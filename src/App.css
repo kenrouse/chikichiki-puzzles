@@ -41,6 +41,15 @@
   display: block;
 }
 
+.brand {
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.brand:hover {
+  color: var(--forest);
+  background: color-mix(in srgb, var(--mint) 22%, transparent);
+}
+
 .brand strong {
   font: 700 17px/1 var(--font-display);
 }
@@ -230,12 +239,39 @@ main {
   font: 800 64px/0.95 var(--font-display);
 }
 
-.title-intro > div:last-child > p:last-child {
+.title-copy > p:last-of-type {
   max-width: 680px;
   margin: 18px 0 0;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.7;
+}
+
+.title-share-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 8px 14px;
+  border: 1px solid var(--forest);
+  border-radius: 5px;
+  color: var(--paper-strong);
+  background: var(--forest);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.title-share-button:hover {
+  background: var(--forest-2);
+  transform: translateY(-2px);
+}
+
+.title-share-button svg {
+  width: 17px;
+  height: 17px;
 }
 
 .title-game-grid {
@@ -268,6 +304,8 @@ main {
 
 .title-game:hover {
   border-color: var(--forest);
+  background: color-mix(in srgb, var(--mint) 18%, var(--paper-strong));
+  box-shadow: color-mix(in srgb, var(--forest) 16%, transparent) 0 10px 24px;
   transform: translateY(-3px);
 }
 
@@ -573,6 +611,18 @@ main {
   background: var(--paper-strong);
   cursor: pointer;
   overflow: hidden;
+  transition: background 110ms ease, filter 110ms ease, box-shadow 110ms ease;
+}
+
+.sudoku-board .sudoku-cell:hover {
+  z-index: 3;
+  background: color-mix(in srgb, var(--mint) 38%, var(--paper-strong));
+  box-shadow: inset 0 0 0 2px var(--forest);
+}
+
+.sudoku-board .sudoku-cell.selected:hover {
+  background: color-mix(in srgb, var(--sun) 54%, var(--paper-strong));
+  box-shadow: inset 0 0 0 3px var(--coral);
 }
 
 .sudoku-cell.box-right {
@@ -638,6 +688,98 @@ main {
   padding-top: 3px;
 }
 
+.entry-mode-picker {
+  display: grid;
+  gap: 7px;
+}
+
+.entry-mode-picker > span {
+  color: var(--muted);
+  font: 700 9px/1 var(--font-display);
+}
+
+.entry-mode-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--paper-strong);
+  overflow: hidden;
+}
+
+.entry-mode-control button {
+  display: grid;
+  min-width: 0;
+  min-height: 54px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 0;
+  border-right: 1px solid var(--line-strong);
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.entry-mode-control button:last-child {
+  border-right: 0;
+}
+
+.entry-mode-control button:hover {
+  background: color-mix(in srgb, var(--mint) 24%, var(--paper-strong));
+}
+
+.entry-mode-control button.active {
+  color: var(--paper-strong);
+  background: var(--forest);
+}
+
+.entry-mode-control button.active:hover {
+  background: var(--forest-2);
+  box-shadow: inset 0 0 0 2px var(--sun);
+}
+
+.entry-mode-control button > span,
+.entry-mode-control strong,
+.entry-mode-control small {
+  display: block;
+}
+
+.entry-mode-control strong {
+  font-size: 12px;
+}
+
+.entry-mode-control small {
+  margin-top: 3px;
+  font-size: 9px;
+  opacity: 0.76;
+}
+
+.entry-mode-value,
+.entry-mode-note {
+  display: grid;
+  width: 30px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-family: var(--font-display);
+}
+
+.entry-mode-value {
+  font-size: 22px;
+}
+
+.entry-mode-note {
+  align-items: start;
+  justify-items: start;
+  padding: 4px;
+  font-size: 9px;
+}
+
 .number-pad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -662,7 +804,7 @@ main {
 
 .tool-row {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 5px;
 }
 
@@ -737,6 +879,15 @@ main {
   touch-action: manipulation;
   font: 800 13px/1 var(--font-display);
   user-select: none;
+  transition: background 110ms ease, filter 110ms ease, outline-color 110ms ease;
+}
+
+.mine-cell:hover {
+  position: relative;
+  z-index: 2;
+  outline: 2px solid var(--sun);
+  outline-offset: -3px;
+  filter: brightness(1.08);
 }
 
 .mine-cell.hidden,
@@ -825,6 +976,34 @@ main {
   margin-top: 18px;
 }
 
+.result-reopen-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 15px;
+  border: 1px solid var(--forest);
+  border-radius: 5px;
+  color: var(--paper-strong);
+  background: var(--forest);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.result-reopen-button:hover {
+  background: var(--forest-2);
+  transform: translateY(-2px);
+}
+
+.result-reopen-button svg {
+  width: 17px;
+  height: 17px;
+}
+
 /* Shisen */
 
 .shisen-scroll {
@@ -880,6 +1059,12 @@ main {
 
 .shisen-tile:hover {
   transform: scale(0.93) translateY(-2px);
+  filter: brightness(1.04) saturate(1.08);
+}
+
+.sound-toggle:hover i {
+  border-color: var(--forest);
+  filter: brightness(1.05);
 }
 
 .shisen-tile.selected {
@@ -979,6 +1164,12 @@ main {
   font-size: 10px;
 }
 
+.initial-board-banner button:hover {
+  border-color: var(--forest);
+  background: color-mix(in srgb, var(--mint) 24%, var(--paper-strong));
+  transform: translateY(-2px);
+}
+
 .app-footer {
   display: flex;
   justify-content: space-between;
@@ -1030,6 +1221,13 @@ main {
   border-radius: 6px;
   background: var(--paper);
   cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.pwa-toast button:hover {
+  border-color: var(--forest);
+  background: color-mix(in srgb, var(--mint) 26%, var(--paper));
+  transform: translateY(-2px);
 }
 
 .pwa-toast svg {
@@ -1143,6 +1341,16 @@ main {
     padding-inline: 8px;
   }
 
+  .sudoku-workspace .segmented-control {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sudoku-workspace .segmented-control button {
+    padding-inline: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
   .toolbar-inline {
     justify-content: flex-end;
   }
@@ -1162,6 +1370,10 @@ main {
     grid-template-columns: minmax(0, 1fr) 70px;
   }
 
+  .entry-mode-picker {
+    grid-column: 1 / -1;
+  }
+
   .number-pad {
     grid-template-columns: repeat(9, 1fr);
   }
@@ -1172,7 +1384,7 @@ main {
   }
 
   .tool-row {
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 
   .number-console .game-message {
@@ -1273,7 +1485,7 @@ main {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .tool-row { grid-template-columns: repeat(6, 1fr); }
+  .tool-row { grid-template-columns: repeat(5, 1fr); }
 
   .number-pad button {
     font-size: 16px;
@@ -1297,7 +1509,10 @@ main {
 .app-footer button,
 .share-dialog button,
 .settings-panel button,
-.result-modal button {
+.result-modal button,
+.confirmation-dialog button,
+.entry-mode-control button,
+.initial-board-banner button {
   transition:
     background-color 140ms ease,
     border-color 140ms ease,
@@ -1317,7 +1532,9 @@ main {
   .app-footer button:hover,
   .share-dialog button:hover,
   .settings-panel button:hover,
-  .result-modal button:hover {
+  .result-modal button:hover,
+  .confirmation-dialog button:hover,
+  .initial-board-banner button:hover {
     transform: translateY(-2px);
   }
 }

@@ -14,10 +14,13 @@ import {
   Palette,
   SlidersHorizontal,
   Sparkles,
+  Trophy,
   Volume2,
   X,
 } from 'lucide-react'
 import { useStoredState } from '../lib/storage'
+import { useDialogFocus } from '../lib/20260811_dialogFocus'
+import { getBgmGain } from './20260811_audio'
 
 export type Appearance = 'light' | 'dark'
 export type ColorTheme = 'archive' | 'ocean' | 'sakura' | 'arcade'
@@ -43,6 +46,7 @@ interface AppPreferences {
   pointerMarkerEnabled: boolean
   sfxEnabled: boolean
   sfxVolume: number
+  tooltipsEnabled: boolean
 }
 
 interface ExperienceContextValue {
@@ -56,6 +60,7 @@ interface ExperienceContextValue {
   setPointerMarkerEnabled: (enabled: boolean) => void
   setSfxEnabled: (enabled: boolean) => void
   setSfxVolume: (volume: number) => void
+  setTooltipsEnabled: (enabled: boolean) => void
 }
 
 interface ResultStat {
@@ -98,7 +103,6 @@ const THEMES: Array<{
 ]
 
 const BGM_NOTES = [261.63, 329.63, 392, 493.88, 440, 392, 329.63, 293.66]
-const BGM_MAX_GAIN = 0.1
 
 function readInitialPreferences(): AppPreferences {
   let appearance: Appearance = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -121,8 +125,18 @@ function readInitialPreferences(): AppPreferences {
     pointerMarkerEnabled: false,
     sfxEnabled: true,
     sfxVolume: 0.58,
+    tooltipsEnabled: true,
   }
   try {
+    const currentPreferences = window.localStorage.getItem(
+      'chikichiki:preferences:v4',
+    )
+    if (currentPreferences) {
+      return {
+        ...defaults,
+        ...(JSON.parse(currentPreferences) as Partial<AppPreferences>),
+      }
+    }
     const previousPreferences =
       window.localStorage.getItem('chikichiki:preferences:v3') ??
       window.localStorage.getItem('chikichiki:preferences:v2')
@@ -190,14 +204,9 @@ function createBgmTone(
   oscillator.stop(start + duration + 0.02)
 }
 
-export function getBgmGain(volume: number): number {
-  const normalized = Math.min(1, Math.max(0, volume))
-  return BGM_MAX_GAIN * normalized ** 1.2
-}
-
 export function AppExperienceProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useStoredState<AppPreferences>(
-    'chikichiki:preferences:v4',
+    'chikichiki:preferences:v5',
     readInitialPreferences,
   )
   const [audioRevision, setAudioRevision] = useState(0)
@@ -391,6 +400,8 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
           updatePreferences({ pointerMarkerEnabled }),
         setSfxEnabled: (sfxEnabled) => updatePreferences({ sfxEnabled }),
         setSfxVolume: (sfxVolume) => updatePreferences({ sfxVolume }),
+        setTooltipsEnabled: (tooltipsEnabled) =>
+          updatePreferences({ tooltipsEnabled }),
       }}
     >
       {children}
@@ -414,19 +425,8 @@ export function SettingsPanel({
   open: boolean
 }) {
   const experience = useAppExperience()
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose, open])
+  const { dialogRef, handleDialogKeyDown } =
+    useDialogFocus<HTMLElement>(open, onClose)
 
   if (!open) {
     return null
@@ -438,8 +438,11 @@ export function SettingsPanel({
         aria-labelledby="settings-title"
         aria-modal="true"
         className="settings-panel"
+        onKeyDown={handleDialogKeyDown}
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
+        ref={dialogRef}
+        tabIndex={-1}
       >
         <header>
           <div>
@@ -568,6 +571,17 @@ export function SettingsPanel({
             />
             <i aria-hidden="true" />
           </label>
+          <label className="sound-toggle">
+            <span>操作要素のツールチップ</span>
+            <input
+              checked={experience.preferences.tooltipsEnabled}
+              onChange={(event) =>
+                experience.setTooltipsEnabled(event.target.checked)
+              }
+              type="checkbox"
+            />
+            <i aria-hidden="true" />
+          </label>
         </fieldset>
       </section>
     </div>,
@@ -630,7 +644,7 @@ export function InteractionEffects() {
           {Array.from({ length: 8 }, (_, index) => <i key={index} />)}
         </span>
       )) : null}
-      <GlobalTooltip />
+      {preferences.tooltipsEnabled ? <GlobalTooltip /> : null}
     </>
   )
 }
@@ -682,7 +696,7 @@ function GlobalTooltip() {
         return
       }
       const clickable = target.closest<HTMLElement>(CLICKABLE_SELECTOR)
-      if (!clickable) {
+      if (!clickable || clickable.dataset.tooltipDisabled === 'true') {
         return
       }
       const text = getTooltipText(clickable)
@@ -781,18 +795,8 @@ export function ConfirmationModal({
   open,
   title,
 }: ConfirmationModalProps) {
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onCancel()
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onCancel, open])
+  const { dialogRef, handleDialogKeyDown } =
+    useDialogFocus<HTMLElement>(open, onCancel)
 
   if (!open) {
     return null
@@ -804,8 +808,11 @@ export function ConfirmationModal({
         aria-labelledby="confirmation-title"
         aria-modal="true"
         className="confirmation-dialog"
+        onKeyDown={handleDialogKeyDown}
         onMouseDown={(event) => event.stopPropagation()}
         role="alertdialog"
+        ref={dialogRef}
+        tabIndex={-1}
       >
         <p>RESET GAME</p>
         <h2 id="confirmation-title">{title}</h2>
@@ -833,25 +840,15 @@ export function ResultModal({
   subtitle,
   title,
 }: ResultModalProps) {
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose, open])
+  const { dialogRef, handleDialogKeyDown } =
+    useDialogFocus<HTMLElement>(open, onClose)
 
   if (!open) {
     return null
   }
   return createPortal(
     <div className="result-backdrop">
-      <section aria-labelledby="result-title" aria-modal="true" className="result-modal" role="dialog">
+      <section aria-labelledby="result-title" aria-modal="true" className="result-modal" onKeyDown={handleDialogKeyDown} ref={dialogRef} role="dialog" tabIndex={-1}>
         <div aria-hidden="true" className="result-rays" />
         <button aria-label="成績画面を閉じる" className="result-close" onClick={onClose} type="button">
           <X aria-hidden="true" />
@@ -885,10 +882,17 @@ export function SettingsButton({ onClick }: { onClick: () => void }) {
       aria-label="表示とサウンド設定"
       data-tooltip="テーマ・BGM・効果音を設定"
       onClick={onClick}
-      title="表示とサウンド設定"
       type="button"
     >
       <SlidersHorizontal aria-hidden="true" />
+    </button>
+  )
+}
+
+export function ResultReopenButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="result-reopen-button" onClick={onClick} type="button">
+      <Trophy aria-hidden="true" /> 成績を見る
     </button>
   )
 }

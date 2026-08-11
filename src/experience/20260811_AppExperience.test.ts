@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { getBgmGain } from './20260811_AppExperience'
+import { getBgmGain } from './20260811_audio'
 
 describe('BGM gain curve', () => {
   test('is silent at zero and reaches an audible maximum at 100 percent', () => {

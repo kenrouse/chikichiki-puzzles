@@ -1,4 +1,5 @@
 import { ArrowRight, Bomb, Grid3X3, LayoutGrid } from 'lucide-react'
+import { TopShareButton } from '../share/20260811_GameShare'
 
 export type TitleGameId = 'sudoku' | 'minesweeper' | 'shisen'
 
@@ -34,10 +35,11 @@ export function TitlePage({ onSelect }: { onSelect: (game: TitleGameId) => void 
           <img alt="" src={`${import.meta.env.BASE_URL}puzzle-mark.svg`} />
           <span>ORIGINAL i-APPLI<br />2006–2009</span>
         </div>
-        <div>
+        <div className="title-copy">
           <p className="eyebrow">THREE PUZZLES / REBUILT 2026</p>
           <h1 id="title-screen-heading">ちきちきパズルズ</h1>
           <p>かつて携帯電話で作った3つのゲームを、同じ発想からもう一度。遊ぶゲームを選んでください。</p>
+          <TopShareButton />
         </div>
       </header>
 

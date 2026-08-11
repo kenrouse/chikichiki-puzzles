@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'vitest'
-import { buildSeededGameUrl, parseSharedGameHash } from './20260811_seededGameUrl'
+import {
+  buildSeededGameUrl,
+  buildTopShareUrl,
+  parseSharedGameHash,
+} from './20260811_seededGameUrl'
 
 describe('seeded game sharing', () => {
   test('builds a project-pages URL with deterministic parameters', () => {
@@ -54,5 +58,14 @@ describe('seeded game sharing', () => {
     )
 
     expect(parseSharedGameHash(new URL(url).hash)?.guessFree).toBe(false)
+  })
+
+  test('builds a fixed top-page URL without the current hash or query', () => {
+    expect(
+      buildTopShareUrl(
+        'https://kenrouse.github.io',
+        '/chikichiki-puzzles/',
+      ),
+    ).toBe('https://kenrouse.github.io/chikichiki-puzzles/')
   })
 })

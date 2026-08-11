@@ -5,13 +5,13 @@ import {
   EyeOff,
   Highlighter,
   Lightbulb,
-  NotebookPen,
   RefreshCw,
   RotateCcw,
 } from 'lucide-react'
 import {
   ConfirmationModal,
   CountdownOverlay,
+  ResultReopenButton,
   ResultModal,
   useAppExperience,
   useGameCountdown,
@@ -102,6 +102,22 @@ function isPeer(first: number, second: number): boolean {
     (Math.floor(firstRow / 3) === Math.floor(secondRow / 3) &&
       Math.floor(firstColumn / 3) === Math.floor(secondColumn / 3))
   )
+}
+
+function describeSudokuCell(
+  index: number,
+  value: number,
+  notes: number,
+): string {
+  const location = `行${Math.floor(index / 9) + 1} 列${(index % 9) + 1}`
+  if (value !== 0) {
+    return `${location} 数字${value}`
+  }
+  const noteDigits = Array.from({ length: 9 }, (_, offset) => offset + 1)
+    .filter((digit) => (notes & (1 << digit)) !== 0)
+  return noteDigits.length > 0
+    ? `${location} メモ ${noteDigits.join('、')}`
+    : `${location} 空欄`
 }
 
 export function SudokuGame() {
@@ -210,6 +226,7 @@ export function SudokuGame() {
       const values = [...current.values]
       const notes = [...current.notes]
       if (isNoteEntry && digit !== 0) {
+        values[selected] = 0
         notes[selected] ^= 1 << digit
       } else {
         values[selected] = digit
@@ -390,9 +407,10 @@ export function SudokuGame() {
               .join(' ')
             return (
               <button
-                aria-label={`行${Math.floor(index / 9) + 1} 列${(index % 9) + 1}${value ? ` 数字${value}` : ' 空欄'}`}
+                aria-label={describeSudokuCell(index, value, session.notes[index])}
                 className={classes}
                 data-sudoku-cell={index}
+                data-tooltip-disabled="true"
                 key={index}
                 onClick={() => {
                   setSelected(index)
@@ -436,10 +454,40 @@ export function SudokuGame() {
         </div>
 
         <aside className="number-console" aria-label="数字入力">
+          <div className="entry-mode-picker">
+            <span>左クリックの入力</span>
+            <div className="entry-mode-control" aria-label="左クリックの入力方法">
+              <button
+                aria-pressed={!noteMode}
+                className={!noteMode ? 'active' : ''}
+                onClick={() => {
+                  setNoteMode(false)
+                  playEffect('select')
+                }}
+                type="button"
+              >
+                <b className="entry-mode-value" aria-hidden="true">5</b>
+                <span><strong>確定</strong><small>大きい数字</small></span>
+              </button>
+              <button
+                aria-pressed={noteMode}
+                className={noteMode ? 'active' : ''}
+                onClick={() => {
+                  setNoteMode(true)
+                  playEffect('select')
+                }}
+                type="button"
+              >
+                <b className="entry-mode-note" aria-hidden="true">5</b>
+                <span><strong>メモ</strong><small>小さい数字</small></span>
+              </button>
+            </div>
+          </div>
           <div className="number-pad">
             {Array.from({ length: 9 }, (_, index) => index + 1).map((digit) => (
               <button
-                data-tooltip={`${digit}を確定入力。右クリックすると小さいメモとして入力`}
+                aria-label={`${digit}を${noteMode ? '小さいメモ' : '大きい確定値'}として入力。右クリックでは常にメモ入力`}
+                data-tooltip-disabled="true"
                 key={digit}
                 onClick={() => enterDigit(digit)}
                 onContextMenu={(event) => {
@@ -458,7 +506,6 @@ export function SudokuGame() {
               data-tooltip="直前の数字またはメモを元に戻す"
               disabled={history.length === 0}
               onClick={undo}
-              title="元に戻す"
               type="button"
             >
               <RotateCcw aria-hidden="true" />
@@ -467,21 +514,9 @@ export function SudokuGame() {
               aria-label="数字を消す"
               data-tooltip="選択中のマスから数字を消す"
               onClick={() => enterDigit(0)}
-              title="数字を消す"
               type="button"
             >
               <Eraser aria-hidden="true" />
-            </button>
-            <button
-              aria-label={`メモ入力 ${noteMode ? 'オン' : 'オフ'}`}
-              aria-pressed={noteMode}
-              className={noteMode ? 'active' : ''}
-              data-tooltip="確定せず、候補を小さく記録する (N)"
-              onClick={() => setNoteMode((current) => !current)}
-              title="メモ入力 (N)"
-              type="button"
-            >
-              <NotebookPen aria-hidden="true" />
             </button>
             <button
               aria-label={`置ける数字のガイド ${placementGuide ? 'オン' : 'オフ'}`}
@@ -492,7 +527,6 @@ export function SudokuGame() {
                 setPlacementGuide((current) => !current)
                 playEffect('select')
               }}
-              title="置ける数字のガイド"
               type="button"
             >
               {placementGuide ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
@@ -506,7 +540,6 @@ export function SudokuGame() {
                 setSameNumberHighlight((current) => !current)
                 playEffect('select')
               }}
-              title="同じ数字のハイライト"
               type="button"
             >
               <Highlighter aria-hidden="true" />
@@ -515,7 +548,6 @@ export function SudokuGame() {
               aria-label="ヒント"
               data-tooltip="選択中の空欄に正解を1つ入力する"
               onClick={revealHint}
-              title="正解を1つ入力"
               type="button"
             >
               <Lightbulb aria-hidden="true" />
@@ -534,6 +566,9 @@ export function SudokuGame() {
               <><strong>PLAYING</strong><span>数字キーと矢印キーにも対応しています。</span></>
             )}
           </div>
+          {session.status === 'won' && !resultOpen ? (
+            <ResultReopenButton onClick={() => setResultOpen(true)} />
+          ) : null}
         </aside>
       </div>
       <ResultModal

@@ -12,6 +12,7 @@ import {
 import {
   ConfirmationModal,
   CountdownOverlay,
+  ResultReopenButton,
   ResultModal,
   useAppExperience,
   useGameCountdown,
@@ -369,7 +370,6 @@ export function ShisenGame() {
             data-tooltip="直前に消した牌を戻す"
             disabled={history.length === 0 || showInitialBoard}
             onClick={undo}
-            title="元に戻す"
             type="button"
           >
             <RotateCcw aria-hidden="true" />
@@ -379,7 +379,6 @@ export function ShisenGame() {
             data-tooltip="現在消せる牌を2枚光らせる"
             disabled={showInitialBoard}
             onClick={showHint}
-            title="消せる牌を表示"
             type="button"
           >
             <Lightbulb aria-hidden="true" />
@@ -389,7 +388,6 @@ export function ShisenGame() {
             data-tooltip="残りを必ず解ける配置へ並べ替える"
             disabled={showInitialBoard}
             onClick={shuffleRemaining}
-            title="必ず解ける配置へ並べ替え"
             type="button"
           >
             <Shuffle aria-hidden="true" />
@@ -433,6 +431,7 @@ export function ShisenGame() {
                 aria-pressed={selected === index}
                 className={`shisen-tile family-${Math.floor(tile / 9)} ${selected === index ? 'selected' : ''} ${isHint ? 'hint' : ''} ${isMissed ? 'missed' : ''}`}
                 data-shisen-index={index}
+                data-tooltip-disabled="true"
                 key={index}
                 onClick={() => selectTile(index)}
                 style={tileStyle}
@@ -471,6 +470,9 @@ export function ShisenGame() {
           <><strong>PLAYING</strong><span>盤外を通る経路も使えます。</span></>
         )}
       </div>
+      {board.status === 'won' && !resultOpen ? (
+        <ResultReopenButton onClick={() => setResultOpen(true)} />
+      ) : null}
       <ResultModal
         grade={getShisenGrade(session)}
         onClose={() => {

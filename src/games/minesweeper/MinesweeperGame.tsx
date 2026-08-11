@@ -17,6 +17,7 @@ import {
 import {
   ConfirmationModal,
   CountdownOverlay,
+  ResultReopenButton,
   ResultModal,
   useAppExperience,
   useGameCountdown,
@@ -24,6 +25,7 @@ import {
 import { formatElapsedTime, useStoredState } from '../../lib/storage'
 import { GameShareButton } from '../../share/20260811_GameShare'
 import { readSharedGameParameters } from '../../share/20260811_seededGameUrl'
+import { isTouchSwipe } from './20260811_touchGesture'
 import {
   calculateMineCascadeScore,
   countOpenedSafeCells,
@@ -55,6 +57,14 @@ interface CascadeReaction {
   intensity: number
   openedCells: number
   points: number
+}
+
+interface TouchGesture {
+  index: number
+  pointerId: number
+  startX: number
+  startY: number
+  swiping: boolean
 }
 
 const CONFIGURATIONS: Record<
@@ -165,6 +175,9 @@ export function MinesweeperGame() {
   )
   const longPressTimer = useRef<number | null>(null)
   const longPressedIndex = useRef<number | null>(null)
+  const touchGesture = useRef<TouchGesture | null>(null)
+  const suppressTouchClickIndex = useRef<number | null>(null)
+  const suppressTouchClickTimer = useRef<number | null>(null)
   const cascadeTimer = useRef<number | null>(null)
   const cascadeId = useRef(0)
   const { playEffect } = useAppExperience()
@@ -216,6 +229,9 @@ export function MinesweeperGame() {
       if (cascadeTimer.current !== null) {
         window.clearTimeout(cascadeTimer.current)
       }
+      if (suppressTouchClickTimer.current !== null) {
+        window.clearTimeout(suppressTouchClickTimer.current)
+      }
     },
     [],
   )
@@ -242,6 +258,10 @@ export function MinesweeperGame() {
   }
 
   function reveal(index: number): void {
+    if (suppressTouchClickIndex.current === index) {
+      suppressTouchClickIndex.current = null
+      return
+    }
     if (longPressedIndex.current === index) {
       longPressedIndex.current = null
       return
@@ -309,11 +329,69 @@ export function MinesweeperGame() {
     if (event.pointerType !== 'touch') {
       return
     }
+    touchGesture.current = {
+      index,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      swiping: false,
+    }
     longPressTimer.current = window.setTimeout(() => {
+      if (touchGesture.current?.swiping) {
+        return
+      }
       longPressedIndex.current = index
       cycleMark(index)
       navigator.vibrate?.(30)
     }, 450)
+  }
+
+  function trackTouchSwipe(event: PointerEvent<HTMLButtonElement>): void {
+    const gesture = touchGesture.current
+    if (
+      event.pointerType !== 'touch' ||
+      !gesture ||
+      gesture.pointerId !== event.pointerId ||
+      gesture.swiping
+    ) {
+      return
+    }
+    if (!isTouchSwipe(
+      gesture.startX,
+      gesture.startY,
+      event.clientX,
+      event.clientY,
+    )) {
+      return
+    }
+    gesture.swiping = true
+    longPressedIndex.current = null
+    suppressTouchClickIndex.current = gesture.index
+    cancelLongPress()
+  }
+
+  function clearSuppressedClickSoon(index: number): void {
+    if (suppressTouchClickTimer.current !== null) {
+      window.clearTimeout(suppressTouchClickTimer.current)
+    }
+    suppressTouchClickTimer.current = window.setTimeout(() => {
+      if (suppressTouchClickIndex.current === index) {
+        suppressTouchClickIndex.current = null
+      }
+      suppressTouchClickTimer.current = null
+    }, 0)
+  }
+
+  function finishTouchGesture(event: PointerEvent<HTMLButtonElement>): void {
+    if (event.pointerType === 'touch') {
+      const gesture = touchGesture.current
+      if (gesture?.pointerId === event.pointerId && gesture.swiping) {
+        suppressTouchClickIndex.current = gesture.index
+        clearSuppressedClickSoon(gesture.index)
+      }
+      touchGesture.current = null
+    }
+    cancelLongPress()
   }
 
   function cancelLongPress(): void {
@@ -382,8 +460,8 @@ export function MinesweeperGame() {
           <button
             aria-label="縮小"
             disabled={cellSize <= 20}
+            data-tooltip="盤面を縮小"
             onClick={() => setCellSize((current) => Math.max(20, current - 4))}
-            title="盤面を縮小"
             type="button"
           >
             <ZoomOut aria-hidden="true" />
@@ -391,8 +469,8 @@ export function MinesweeperGame() {
           <button
             aria-label="拡大"
             disabled={cellSize >= 40}
+            data-tooltip="盤面を拡大"
             onClick={() => setCellSize((current) => Math.min(40, current + 4))}
-            title="盤面を拡大"
             type="button"
           >
             <ZoomIn aria-hidden="true" />
@@ -469,16 +547,17 @@ export function MinesweeperGame() {
             <button
               aria-label={describeCell(board, index)}
               className={`mine-cell ${cell.state} adjacent-${cell.adjacent} ${cell.state === 'open' && cell.mine ? 'actual-mine' : ''} ${board.detonatedIndex === index ? 'detonated' : ''}`}
+              data-tooltip-disabled="true"
               key={index}
               onClick={() => reveal(index)}
               onContextMenu={(event) => {
                 event.preventDefault()
                 cycleMark(index)
               }}
-              onPointerCancel={cancelLongPress}
+              onPointerCancel={finishTouchGesture}
               onPointerDown={(event) => beginLongPress(event, index)}
-              onPointerLeave={cancelLongPress}
-              onPointerUp={cancelLongPress}
+              onPointerMove={trackTouchSwipe}
+              onPointerUp={finishTouchGesture}
               role="gridcell"
               type="button"
             >
@@ -525,6 +604,9 @@ export function MinesweeperGame() {
           <><strong>PLAYING</strong><span>右クリックまたは長押しで、旗 → ? → 解除。数字を再度押すと周囲を開きます。</span></>
         )}
       </div>
+      {(board.status === 'won' || board.status === 'lost') && !resultOpen ? (
+        <ResultReopenButton onClick={() => setResultOpen(true)} />
+      ) : null}
       <ResultModal
         grade={board.status === 'lost' ? 'X' : getMineGrade(session)}
         onClose={() => setResultOpen(false)}

@@ -75,7 +75,6 @@ function PwaStatus() {
         <button
           aria-label="アプリを更新"
           onClick={() => updateServiceWorker(true)}
-          title="更新"
           type="button"
         >
           <RefreshCw aria-hidden="true" />
@@ -87,7 +86,6 @@ function PwaStatus() {
           setNeedRefresh(false)
           setOfflineReady(false)
         }}
-        title="閉じる"
         type="button"
       >
         <X aria-hidden="true" />
@@ -183,7 +181,6 @@ function App() {
             <button
               aria-label="アプリをインストール"
               onClick={installApp}
-              title="この端末にインストール"
               type="button"
             >
               <Download aria-hidden="true" />
@@ -194,7 +191,6 @@ function App() {
             className={activeView === 'guide' ? 'active' : ''}
             data-tooltip="生成アルゴリズムと難易度設計"
             onClick={() => selectView('guide')}
-            title="ゲーム制作ノート"
             type="button"
           >
             <BookOpen aria-hidden="true" />
@@ -205,7 +201,6 @@ function App() {
             href="https://github.com/kenrouse/chikichiki-puzzles"
             rel="noreferrer"
             target="_blank"
-            title="GitHub"
           >
             <Code2 aria-hidden="true" />
           </a>

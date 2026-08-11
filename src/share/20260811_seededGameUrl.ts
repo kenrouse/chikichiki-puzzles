@@ -71,3 +71,7 @@ export function buildSeededGameUrl(
   url.hash = `/${game}?${parameters.toString()}`
   return url.toString()
 }
+
+export function buildTopShareUrl(origin: string, baseUrl: string): string {
+  return new URL(baseUrl, origin).toString()
+}
