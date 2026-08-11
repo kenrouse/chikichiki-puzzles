@@ -1,0 +1,95 @@
+:root {
+  --paper: #f4f1e8;
+  --paper-strong: #fffdf7;
+  --ink: #18211f;
+  --muted: #68716e;
+  --line: #c9c7bc;
+  --line-strong: #858c87;
+  --forest: #173f37;
+  --forest-2: #245f52;
+  --mint: #8fc2b4;
+  --sun: #efb23d;
+  --coral: #d9674d;
+  --danger: #b83b32;
+  --shadow: rgba(24, 33, 31, 0.16) 0 12px 30px;
+  --font-body: 'Yu Gothic UI', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+  --font-display: Bahnschrift, 'Aptos Display', 'Yu Gothic UI', sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  color-scheme: light;
+  font-family: var(--font-body);
+  font-synthesis: none;
+  letter-spacing: 0;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme='dark'] {
+  --paper: #18211f;
+  --paper-strong: #202c29;
+  --ink: #f3f0e5;
+  --muted: #aeb9b4;
+  --line: #3f514c;
+  --line-strong: #81938d;
+  --forest: #8fc2b4;
+  --forest-2: #aad5c9;
+  --mint: #477a6f;
+  --sun: #f1bd52;
+  --coral: #e57b63;
+  --danger: #f08173;
+  --shadow: rgba(0, 0, 0, 0.35) 0 12px 30px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  letter-spacing: 0;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--paper);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100svh;
+  margin: 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(23, 63, 55, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 63, 55, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  color: inherit;
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--sun);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+svg {
+  display: block;
+}
+
+#root {
+  min-height: 100svh;
+}

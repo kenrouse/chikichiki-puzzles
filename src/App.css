@@ -1,0 +1,945 @@
+.app-shell {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  position: sticky;
+  z-index: 50;
+  top: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  min-height: 72px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper-strong) 94%, transparent);
+  box-shadow: rgba(24, 33, 31, 0.07) 0 3px 12px;
+  backdrop-filter: blur(14px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 238px;
+  padding: 12px 22px;
+  border-right: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.brand img {
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
+}
+
+.brand span,
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand strong {
+  font: 700 17px/1 var(--font-display);
+}
+
+.brand small {
+  margin-top: 5px;
+  color: var(--muted);
+  font: 600 9px/1 var(--font-display);
+}
+
+.game-tabs {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.game-tabs button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 142px;
+  padding: 9px 18px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+}
+
+.game-tabs button:first-child {
+  border-left: 1px solid var(--line);
+}
+
+.game-tabs button::after {
+  position: absolute;
+  right: 18px;
+  bottom: -1px;
+  left: 18px;
+  height: 4px;
+  background: var(--coral);
+  content: '';
+  opacity: 0;
+  transform: scaleX(0.35);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.game-tabs button:hover {
+  background: color-mix(in srgb, var(--mint) 18%, transparent);
+}
+
+.game-tabs button.active {
+  background: color-mix(in srgb, var(--mint) 28%, transparent);
+  color: var(--forest);
+}
+
+.game-tabs button.active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.game-tabs svg {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+}
+
+.game-tabs span,
+.game-tabs small {
+  display: block;
+  text-align: left;
+}
+
+.game-tabs span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.game-tabs small {
+  margin-top: 2px;
+  color: var(--muted);
+  font: 600 9px/1 var(--font-display);
+}
+
+.app-utilities {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.app-utilities button,
+.app-utilities a,
+.toolbar-inline > button,
+.tool-row > button {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.app-utilities button:hover,
+.app-utilities a:hover,
+.toolbar-inline > button:hover,
+.tool-row > button:hover {
+  border-color: var(--line);
+  background: var(--paper-strong);
+}
+
+.app-utilities svg,
+.toolbar-inline svg,
+.tool-row svg {
+  width: 20px;
+  height: 20px;
+}
+
+main {
+  width: min(1320px, 100%);
+  flex: 1;
+  margin: 0 auto;
+  padding: 34px 34px 58px;
+}
+
+.game-workspace {
+  animation: workspace-in 260ms ease both;
+}
+
+@keyframes workspace-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-workspace {
+    animation: none;
+  }
+}
+
+.game-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 30px;
+  padding-bottom: 18px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--coral);
+  font: 700 11px/1 var(--font-display);
+}
+
+.game-heading h1 {
+  margin: 0;
+  color: var(--ink);
+  font: 700 32px/1.15 var(--font-display);
+}
+
+.game-metrics {
+  display: flex;
+  align-items: flex-end;
+  gap: 26px;
+  color: var(--muted);
+  font: 700 9px/1 var(--font-display);
+}
+
+.game-metrics span {
+  display: grid;
+  gap: 5px;
+  min-width: 58px;
+  text-align: right;
+}
+
+.game-metrics strong {
+  color: var(--ink);
+  font: 700 22px/1 var(--font-display);
+  white-space: nowrap;
+}
+
+.difficulty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0 22px;
+}
+
+.difficulty-row p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.segmented-control {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--paper-strong);
+}
+
+.segmented-control button {
+  min-width: 92px;
+  min-height: 38px;
+  padding: 6px 16px;
+  border: 0;
+  border-right: 1px solid var(--line-strong);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.segmented-control button:last-child {
+  border-right: 0;
+}
+
+.segmented-control button.active {
+  color: var(--paper-strong);
+  background: var(--forest);
+}
+
+.segmented-control small {
+  display: block;
+  margin-top: 2px;
+  font: 600 9px/1 var(--font-display);
+  opacity: 0.7;
+}
+
+.command-button {
+  display: inline-flex !important;
+  width: auto !important;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 15px !important;
+  border: 1px solid var(--forest) !important;
+  border-radius: 6px;
+  color: var(--paper-strong) !important;
+  background: var(--forest) !important;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.command-button:hover {
+  background: var(--forest-2) !important;
+}
+
+.toolbar-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.game-message {
+  display: grid;
+  gap: 5px;
+  min-height: 68px;
+  align-content: center;
+  padding: 12px 16px;
+  border-left: 4px solid var(--forest);
+  background: color-mix(in srgb, var(--mint) 20%, var(--paper-strong));
+}
+
+.game-message strong {
+  color: var(--forest);
+  font: 700 13px/1 var(--font-display);
+}
+
+.game-message span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.game-message.success {
+  border-left-color: var(--sun);
+  background: color-mix(in srgb, var(--sun) 22%, var(--paper-strong));
+}
+
+.game-message.success strong {
+  color: var(--ink);
+}
+
+.game-message.warning {
+  border-left-color: var(--coral);
+}
+
+.game-message.danger {
+  border-left-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 13%, var(--paper-strong));
+}
+
+.game-message.danger strong {
+  color: var(--danger);
+}
+
+/* Sudoku */
+
+.sudoku-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 600px) 260px;
+  justify-content: center;
+  gap: 34px;
+  align-items: start;
+}
+
+.sudoku-board {
+  display: grid;
+  width: min(66svh, 600px, 100%);
+  aspect-ratio: 1;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  grid-template-rows: repeat(9, minmax(0, 1fr));
+  border: 3px solid var(--ink);
+  background: var(--line-strong);
+  box-shadow: var(--shadow);
+}
+
+.sudoku-cell {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--paper-strong);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.sudoku-cell.box-right {
+  border-right: 3px solid var(--ink);
+}
+
+.sudoku-cell.box-bottom {
+  border-bottom: 3px solid var(--ink);
+}
+
+.sudoku-cell.given {
+  background: color-mix(in srgb, var(--line) 30%, var(--paper-strong));
+}
+
+.sudoku-cell.peer {
+  background: color-mix(in srgb, var(--mint) 21%, var(--paper-strong));
+}
+
+.sudoku-cell.same-value {
+  background: color-mix(in srgb, var(--sun) 32%, var(--paper-strong));
+}
+
+.sudoku-cell.selected {
+  z-index: 2;
+  background: color-mix(in srgb, var(--sun) 44%, var(--paper-strong));
+  box-shadow: inset 0 0 0 3px var(--coral);
+}
+
+.sudoku-cell.conflict {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 15%, var(--paper-strong));
+}
+
+.cell-value {
+  font: 700 28px/1 var(--font-display);
+}
+
+.sudoku-cell.editable .cell-value {
+  color: var(--forest);
+}
+
+.cell-notes {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  place-items: center;
+  color: var(--forest-2);
+  font: 700 10px/1 var(--font-display);
+}
+
+.candidate-count {
+  max-width: 100%;
+  color: var(--muted);
+  font: 600 8px/1 var(--font-display);
+  overflow: hidden;
+}
+
+.number-console {
+  display: grid;
+  gap: 14px;
+  padding-top: 3px;
+}
+
+.number-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--line-strong);
+  border-left: 1px solid var(--line-strong);
+}
+
+.number-pad button {
+  aspect-ratio: 1;
+  border: 0;
+  border-right: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  color: var(--forest);
+  background: var(--paper-strong);
+  cursor: pointer;
+  font: 700 25px/1 var(--font-display);
+}
+
+.number-pad button:hover {
+  background: color-mix(in srgb, var(--sun) 28%, var(--paper-strong));
+}
+
+.tool-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+.tool-row > button {
+  width: 100%;
+  border-color: var(--line);
+  background: var(--paper-strong);
+}
+
+.tool-row > button.active {
+  color: var(--paper-strong);
+  background: var(--forest);
+}
+
+/* Minesweeper */
+
+.minefield-scroll {
+  max-height: 68svh;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--forest) 8%, var(--paper-strong));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.minefield {
+  display: grid;
+  width: max-content;
+  grid-template-columns: repeat(var(--mine-columns), var(--mine-cell-size));
+  grid-auto-rows: var(--mine-cell-size);
+  margin: 0 auto;
+  border: 3px solid var(--ink);
+  background: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.mine-cell {
+  display: grid;
+  width: var(--mine-cell-size);
+  height: var(--mine-cell-size);
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 74%, var(--ink));
+  cursor: pointer;
+  touch-action: manipulation;
+  font: 800 13px/1 var(--font-display);
+  user-select: none;
+}
+
+.mine-cell.hidden,
+.mine-cell.flagged {
+  border-color: var(--paper-strong) var(--line-strong) var(--line-strong) var(--paper-strong);
+  background: color-mix(in srgb, var(--mint) 48%, var(--paper));
+}
+
+.mine-cell.hidden:hover,
+.mine-cell.flagged:hover {
+  background: color-mix(in srgb, var(--sun) 34%, var(--paper-strong));
+}
+
+.mine-cell.open {
+  border-color: color-mix(in srgb, var(--line) 70%, transparent);
+  background: var(--paper-strong);
+}
+
+.mine-cell svg {
+  width: 62%;
+  height: 62%;
+}
+
+.mine-cell.flagged {
+  color: var(--coral);
+}
+
+.mine-cell.open:has(svg) {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 18%, var(--paper-strong));
+}
+
+.mine-cell.adjacent-1 { color: #1b5aaa; }
+.mine-cell.adjacent-2 { color: #26714d; }
+.mine-cell.adjacent-3 { color: #b83b32; }
+.mine-cell.adjacent-4 { color: #563a94; }
+.mine-cell.adjacent-5 { color: #8a3928; }
+.mine-cell.adjacent-6 { color: #167b7c; }
+.mine-cell.adjacent-7 { color: var(--ink); }
+.mine-cell.adjacent-8 { color: var(--muted); }
+
+:root[data-theme='dark'] .mine-cell.adjacent-1 { color: #79aef2; }
+:root[data-theme='dark'] .mine-cell.adjacent-2 { color: #83d3a7; }
+:root[data-theme='dark'] .mine-cell.adjacent-3 { color: #ff8b7d; }
+:root[data-theme='dark'] .mine-cell.adjacent-4 { color: #bba1f2; }
+:root[data-theme='dark'] .mine-cell.adjacent-5 { color: #eda18a; }
+:root[data-theme='dark'] .mine-cell.adjacent-6 { color: #76d9d9; }
+
+.mine-message,
+.shisen-message {
+  margin-top: 18px;
+}
+
+/* Shisen */
+
+.shisen-scroll {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--forest) 10%, var(--paper-strong));
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.shisen-shell {
+  position: relative;
+  width: 1120px;
+  max-width: none;
+  aspect-ratio: 19 / 13.2;
+  margin: 0 auto;
+  border: 3px solid var(--ink);
+  background:
+    linear-gradient(90deg, transparent 49.5%, rgba(255, 255, 255, 0.06) 50%, transparent 50.5%),
+    #1f5b4e;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.shisen-mat {
+  position: absolute;
+  inset: 2.5%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background-image:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.shisen-tile {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid #b7ab8c;
+  border-radius: 5px;
+  color: #202925;
+  background: #fff8df;
+  box-shadow:
+    inset -4px -5px 0 #d5c9aa,
+    rgba(0, 0, 0, 0.28) 2px 4px 3px;
+  cursor: pointer;
+  transform: scale(0.86);
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.shisen-tile:hover {
+  transform: scale(0.93) translateY(-2px);
+}
+
+.shisen-tile.selected {
+  border-color: var(--sun);
+  box-shadow:
+    inset -4px -5px 0 #d5c9aa,
+    0 0 0 4px var(--sun),
+    rgba(0, 0, 0, 0.28) 2px 4px 3px;
+  transform: scale(0.9) translateY(-3px);
+}
+
+.shisen-tile.hint {
+  filter: brightness(1.08);
+  box-shadow:
+    inset -4px -5px 0 #d5c9aa,
+    0 0 0 4px var(--coral),
+    0 0 18px var(--sun);
+  animation: tile-hint 720ms ease-in-out infinite alternate;
+}
+
+@keyframes tile-hint {
+  to { transform: scale(0.93) translateY(-3px); }
+}
+
+.shisen-tile span {
+  font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', serif;
+  font-size: 38px;
+  line-height: 1;
+}
+
+.shisen-tile.family-0 span { color: #b9322c; }
+.shisen-tile.family-1 span { color: #17634c; }
+.shisen-tile.family-2 span { color: #1d4d8f; }
+.shisen-tile.family-3 span { color: #312d2a; }
+
+.shisen-path {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.shisen-path polyline {
+  fill: none;
+  stroke: #ffd75e;
+  stroke-linecap: square;
+  stroke-linejoin: round;
+  stroke-width: 0.14;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+}
+
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 28px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--paper-strong);
+  font: 600 9px/1.4 var(--font-display);
+}
+
+.pwa-toast {
+  position: fixed;
+  z-index: 80;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 36px));
+  padding: 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--paper-strong);
+  box-shadow: var(--shadow);
+}
+
+.pwa-toast > div {
+  display: grid;
+  gap: 3px;
+}
+
+.pwa-toast strong {
+  font-size: 13px;
+}
+
+.pwa-toast span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pwa-toast button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.pwa-toast svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 980px) {
+  .app-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .brand {
+    min-width: 0;
+    border-right: 0;
+  }
+
+  .game-tabs {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: stretch;
+    border-top: 1px solid var(--line);
+    overflow-x: auto;
+  }
+
+  .game-tabs button {
+    min-width: 150px;
+    flex: 1;
+  }
+
+  main {
+    padding: 26px 22px 46px;
+  }
+
+  .sudoku-layout {
+    grid-template-columns: minmax(340px, 560px) 230px;
+    gap: 22px;
+  }
+}
+
+@media (max-width: 760px) {
+  .game-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .game-heading h1 {
+    font-size: 27px;
+  }
+
+  .game-metrics {
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .game-metrics span {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .game-metrics strong {
+    font-size: 19px;
+  }
+
+  .difficulty-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .segmented-control {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .segmented-control button {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .toolbar-inline {
+    justify-content: flex-end;
+  }
+
+  .sudoku-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sudoku-board {
+    width: min(100%, 600px);
+    margin: 0 auto;
+  }
+
+  .number-console {
+    width: min(100%, 600px);
+    margin: 0 auto;
+    grid-template-columns: minmax(0, 1fr) 70px;
+  }
+
+  .number-pad {
+    grid-template-columns: repeat(9, 1fr);
+  }
+
+  .number-pad button {
+    aspect-ratio: 0.8;
+    font-size: 18px;
+  }
+
+  .tool-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .number-console .game-message {
+    grid-column: 1 / -1;
+  }
+
+  .minefield-scroll,
+  .shisen-scroll {
+    margin-inline: -10px;
+    padding: 10px;
+  }
+
+  .app-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-header {
+    min-height: 62px;
+  }
+
+  .brand {
+    gap: 9px;
+    padding: 10px 12px;
+  }
+
+  .brand img {
+    width: 36px;
+    height: 36px;
+  }
+
+  .brand strong {
+    font-size: 14px;
+  }
+
+  .brand small {
+    font-size: 8px;
+  }
+
+  .app-utilities {
+    padding: 0 5px;
+  }
+
+  .app-utilities button,
+  .app-utilities a {
+    width: 38px;
+    height: 38px;
+  }
+
+  .game-tabs button {
+    min-width: 118px;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .game-tabs span {
+    font-size: 11px;
+  }
+
+  .game-tabs svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  main {
+    padding: 20px 12px 38px;
+  }
+
+  .cell-value {
+    font-size: 21px;
+  }
+
+  .cell-notes {
+    font-size: 7px;
+  }
+
+  .number-console {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tool-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .number-pad button {
+    font-size: 16px;
+  }
+
+  .shisen-shell {
+    width: 900px;
+  }
+
+  .shisen-tile span {
+    font-size: 30px;
+  }
+}
