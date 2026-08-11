@@ -43,6 +43,7 @@ interface AppPreferences {
   bgmVolume: number
   colorTheme: ColorTheme
   effectsEnabled: boolean
+  penStabilizationEnabled: boolean
   pointerMarkerEnabled: boolean
   sfxEnabled: boolean
   sfxVolume: number
@@ -57,6 +58,7 @@ interface ExperienceContextValue {
   setBgmVolume: (volume: number) => void
   setColorTheme: (theme: ColorTheme) => void
   setEffectsEnabled: (enabled: boolean) => void
+  setPenStabilizationEnabled: (enabled: boolean) => void
   setPointerMarkerEnabled: (enabled: boolean) => void
   setSfxEnabled: (enabled: boolean) => void
   setSfxVolume: (volume: number) => void
@@ -122,15 +124,16 @@ function readInitialPreferences(): AppPreferences {
     bgmVolume: 0.32,
     colorTheme: 'archive',
     effectsEnabled: true,
+    penStabilizationEnabled: true,
     pointerMarkerEnabled: false,
     sfxEnabled: true,
     sfxVolume: 0.58,
     tooltipsEnabled: true,
   }
   try {
-    const currentPreferences = window.localStorage.getItem(
-      'chikichiki:preferences:v4',
-    )
+    const currentPreferences =
+      window.localStorage.getItem('chikichiki:preferences:v5') ??
+      window.localStorage.getItem('chikichiki:preferences:v4')
     if (currentPreferences) {
       return {
         ...defaults,
@@ -206,7 +209,7 @@ function createBgmTone(
 
 export function AppExperienceProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useStoredState<AppPreferences>(
-    'chikichiki:preferences:v5',
+    'chikichiki:preferences:v6',
     readInitialPreferences,
   )
   const [audioRevision, setAudioRevision] = useState(0)
@@ -320,6 +323,8 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.theme = preferences.appearance
     document.documentElement.dataset.colorTheme = preferences.colorTheme
     document.documentElement.dataset.effects = preferences.effectsEnabled ? 'on' : 'off'
+    document.documentElement.dataset.penStabilization =
+      preferences.penStabilizationEnabled ? 'on' : 'off'
     document.documentElement.dataset.pointerMarker = preferences.pointerMarkerEnabled
       ? 'on'
       : 'off'
@@ -327,6 +332,7 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
     preferences.appearance,
     preferences.colorTheme,
     preferences.effectsEnabled,
+    preferences.penStabilizationEnabled,
     preferences.pointerMarkerEnabled,
   ])
 
@@ -396,6 +402,8 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
         setBgmVolume: (bgmVolume) => updatePreferences({ bgmVolume }),
         setColorTheme: (colorTheme) => updatePreferences({ colorTheme }),
         setEffectsEnabled: (effectsEnabled) => updatePreferences({ effectsEnabled }),
+        setPenStabilizationEnabled: (penStabilizationEnabled) =>
+          updatePreferences({ penStabilizationEnabled }),
         setPointerMarkerEnabled: (pointerMarkerEnabled) =>
           updatePreferences({ pointerMarkerEnabled }),
         setSfxEnabled: (sfxEnabled) => updatePreferences({ sfxEnabled }),
@@ -582,6 +590,20 @@ export function SettingsPanel({
             />
             <i aria-hidden="true" />
           </label>
+          <label
+            className="sound-toggle"
+            data-tooltip="ペンでゲームを操作している間、ゲーム内ボタン上のスクロールを抑止します"
+          >
+            <span>ペン入力を安定化</span>
+            <input
+              checked={experience.preferences.penStabilizationEnabled}
+              onChange={(event) =>
+                experience.setPenStabilizationEnabled(event.target.checked)
+              }
+              type="checkbox"
+            />
+            <i aria-hidden="true" />
+          </label>
         </fieldset>
       </section>
     </div>,
@@ -595,7 +617,11 @@ export function InteractionEffects() {
   const [bursts, setBursts] = useState<Array<{ id: number; x: number; y: number }>>([])
 
   useEffect(() => {
+    const trackPointerType = (event: PointerEvent) => {
+      document.documentElement.dataset.activePointer = event.pointerType
+    }
     const handleMove = (event: PointerEvent) => {
+      trackPointerType(event)
       if (
         !preferences.pointerMarkerEnabled ||
         event.pointerType === 'touch' ||
@@ -608,6 +634,7 @@ export function InteractionEffects() {
       pointer.current.classList.add('visible')
     }
     const handleDown = (event: PointerEvent) => {
+      trackPointerType(event)
       if (!preferences.effectsEnabled) {
         return
       }
@@ -620,10 +647,12 @@ export function InteractionEffects() {
     }
     const handleLeave = () => pointer.current?.classList.remove('visible')
     window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerover', trackPointerType)
     window.addEventListener('pointerdown', handleDown)
     document.documentElement.addEventListener('mouseleave', handleLeave)
     return () => {
       window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerover', trackPointerType)
       window.removeEventListener('pointerdown', handleDown)
       document.documentElement.removeEventListener('mouseleave', handleLeave)
     }

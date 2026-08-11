@@ -1629,6 +1629,11 @@ button:active,
   transform: translateY(1px) scale(0.96) !important;
 }
 
+:root[data-pen-stabilization='on'][data-active-pointer='pen'] .game-workspace button {
+  touch-action: none;
+  user-select: none;
+}
+
 .app-utilities .active {
   color: var(--paper-strong);
   background: var(--forest);

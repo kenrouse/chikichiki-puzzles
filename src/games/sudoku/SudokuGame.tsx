@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
   Eraser,
   Eye,
@@ -131,6 +131,7 @@ export function SudokuGame() {
     const firstEmpty = session.puzzle.puzzle.findIndex((value) => value === 0)
     return firstEmpty >= 0 ? firstEmpty : 0
   })
+  const selectedRef = useRef(selected)
   const [noteMode, setNoteMode] = useState(false)
   const [placementGuide, setPlacementGuide] = useState(false)
   const [sameNumberHighlight, setSameNumberHighlight] = useState(false)
@@ -144,6 +145,11 @@ export function SudokuGame() {
   )
   const conflicts = getConflicts(session.values)
   const selectedValue = session.values[selected]
+
+  function selectCell(index: number): void {
+    selectedRef.current = index
+    setSelected(index)
+  }
 
   useEffect(() => {
     if (session.status !== 'playing' || isCountingDown) {
@@ -173,7 +179,7 @@ export function SudokuGame() {
     setResultOpen(false)
     restartCountdown()
     const firstEmpty = next.puzzle.puzzle.findIndex((value) => value === 0)
-    setSelected(firstEmpty >= 0 ? firstEmpty : 0)
+    selectCell(firstEmpty >= 0 ? firstEmpty : 0)
   }
 
   function requestDifficultyChange(difficulty: SudokuDifficulty): void {
@@ -190,9 +196,10 @@ export function SudokuGame() {
   }
 
   function enterDigit(digit: number, forceNote = false): void {
+    const targetIndex = selectedRef.current
     if (
       session.status !== 'playing' ||
-      session.puzzle.puzzle[selected] !== 0 ||
+      session.puzzle.puzzle[targetIndex] !== 0 ||
       isCountingDown
     ) {
       return
@@ -200,10 +207,10 @@ export function SudokuGame() {
     rememberCurrentState()
     const isNoteEntry = forceNote || noteMode
     const incorrect =
-      !isNoteEntry && digit !== 0 && digit !== session.puzzle.solution[selected]
+      !isNoteEntry && digit !== 0 && digit !== session.puzzle.solution[targetIndex]
     const previewValues = [...session.values]
     if (!isNoteEntry) {
-      previewValues[selected] = digit
+      previewValues[targetIndex] = digit
     }
     const willClear = !isNoteEntry && isSudokuSolved(previewValues, session.puzzle.solution)
     if (willClear) {
@@ -220,17 +227,17 @@ export function SudokuGame() {
               : 'place',
       )
     }
-    setPulseCell(selected)
+    setPulseCell(targetIndex)
     window.setTimeout(() => setPulseCell(null), 340)
     setSession((current) => {
       const values = [...current.values]
       const notes = [...current.notes]
       if (isNoteEntry && digit !== 0) {
-        values[selected] = 0
-        notes[selected] ^= 1 << digit
+        values[targetIndex] = 0
+        notes[targetIndex] ^= 1 << digit
       } else {
-        values[selected] = digit
-        notes[selected] = 0
+        values[targetIndex] = digit
+        notes[targetIndex] = 0
       }
       return {
         ...current,
@@ -263,10 +270,11 @@ export function SudokuGame() {
     if (session.status !== 'playing') {
       return
     }
+    const selectedIndex = selectedRef.current
     const target =
-      session.puzzle.puzzle[selected] === 0 &&
-      session.values[selected] !== session.puzzle.solution[selected]
-        ? selected
+      session.puzzle.puzzle[selectedIndex] === 0 &&
+      session.values[selectedIndex] !== session.puzzle.solution[selectedIndex]
+        ? selectedIndex
         : session.values.findIndex(
             (value, index) =>
               session.puzzle.puzzle[index] === 0 &&
@@ -285,7 +293,7 @@ export function SudokuGame() {
     } else {
       playEffect('hint')
     }
-    setSelected(target)
+    selectCell(target)
     setSession((current) => {
       const values = [...current.values]
       const notes = [...current.notes]
@@ -307,16 +315,17 @@ export function SudokuGame() {
     if (isCountingDown) {
       return
     }
-    const row = Math.floor(selected / 9)
-    const column = selected % 9
-    let next = selected
+    const selectedIndex = selectedRef.current
+    const row = Math.floor(selectedIndex / 9)
+    const column = selectedIndex % 9
+    let next = selectedIndex
     if (event.key === 'ArrowUp') next = Math.max(0, row - 1) * 9 + column
     if (event.key === 'ArrowDown') next = Math.min(8, row + 1) * 9 + column
     if (event.key === 'ArrowLeft') next = row * 9 + Math.max(0, column - 1)
     if (event.key === 'ArrowRight') next = row * 9 + Math.min(8, column + 1)
-    if (next !== selected) {
+    if (next !== selectedIndex) {
       event.preventDefault()
-      setSelected(next)
+      selectCell(next)
       window.requestAnimationFrame(() => {
         document.querySelector<HTMLButtonElement>(`[data-sudoku-cell="${next}"]`)?.focus()
       })
@@ -413,15 +422,20 @@ export function SudokuGame() {
                 data-tooltip-disabled="true"
                 key={index}
                 onClick={() => {
-                  setSelected(index)
+                  selectCell(index)
                   playEffect('select')
                 }}
                 onContextMenu={(event) => {
                   event.preventDefault()
                   if (!given) {
-                    setSelected(index)
+                    selectCell(index)
                     setNoteMode(true)
                     playEffect('select')
+                  }
+                }}
+                onPointerDown={(event) => {
+                  if (event.button === 0 && event.isPrimary) {
+                    selectCell(index)
                   }
                 }}
                 onKeyDown={handleCellKeyDown}
