@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Check, Copy, Share2, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAppExperience } from '../experience/20260811_AppExperience'
+import { getLocalizedCopy } from '../i18n/20260812_i18n'
 import { useDialogFocus } from '../lib/20260811_dialogFocus'
 import {
   buildSeededGameUrl,
@@ -36,6 +37,51 @@ interface GameShareButtonProps {
   title: string
 }
 
+const SHARE_COPY = {
+  ja: {
+    close: '共有画面を閉じる',
+    copied: 'コピーしました',
+    copyFailed: 'コピーできませんでした',
+    copyUrl: 'URLをコピー',
+    disabled: '現在のゲームはまだ共有できません',
+    gameAccessible: 'このゲームを共有',
+    gameDescription: 'このQRコードまたはURLを開くと、同じ難易度とseedで盤面が再生成されます。',
+    gameDialog: '同じゲームを共有',
+    gameShareText: (title: string) => `${title} 同じ問題に挑戦できます。`,
+    gameTooltip: '同じseedのゲームをURLとQRコードで共有',
+    osShare: 'OSで共有',
+    shareUrl: '共有URL',
+    topAccessible: 'トップページを共有',
+    topButton: 'このページを共有',
+    topDescription: 'このQRコードまたはURLから、ちきちきパズルズのトップページを開けます。',
+    topDialog: 'トップページを共有',
+    topShareText: 'ちきちきパズルズで遊べます。',
+    topTitle: 'ちきちきパズルズ',
+    topTooltip: 'トップページの固定URLを共有',
+  },
+  en: {
+    close: 'Close sharing dialog',
+    copied: 'Copied',
+    copyFailed: 'Could not copy',
+    copyUrl: 'Copy URL',
+    disabled: 'This game cannot be shared yet',
+    gameAccessible: 'Share this game',
+    gameDescription: 'Open this QR code or URL to regenerate the same board from its difficulty and seed.',
+    gameDialog: 'Share the same game',
+    gameShareText: (title: string) => `Try the same ${title} challenge.`,
+    gameTooltip: 'Share the same seeded game by URL or QR code',
+    osShare: 'Share with device',
+    shareUrl: 'Share URL',
+    topAccessible: 'Share the home page',
+    topButton: 'Share this page',
+    topDescription: 'Open this QR code or URL to visit the Chikichiki Puzzles home page.',
+    topDialog: 'Share the home page',
+    topShareText: 'Play Chikichiki Puzzles.',
+    topTitle: 'Chikichiki Puzzles',
+    topTooltip: 'Share the permanent home page URL',
+  },
+} as const
+
 async function copyText(value: string): Promise<boolean> {
   if (navigator.clipboard?.writeText) {
     try {
@@ -61,12 +107,14 @@ export function GameShareButton({
   className,
   difficulty,
   disabled = false,
-  disabledReason = '現在のゲームはまだ共有できません',
+  disabledReason,
   extraParameters = {},
   game,
   seed,
   title,
 }: GameShareButtonProps) {
+  const { preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, SHARE_COPY)
   const shareUrl = buildSeededGameUrl(
     window.location.href,
     game,
@@ -77,23 +125,23 @@ export function GameShareButton({
 
   return (
     <ShareButton
-      accessibleLabel="このゲームを共有"
+      accessibleLabel={copy.gameAccessible}
       buttonLabel={buttonLabel}
       className={className}
-      description="このQRコードまたはURLを開くと、同じ難易度とseedで盤面が再生成されます。"
+      description={copy.gameDescription}
       details={[
         { label: 'SEED', value: String(seed >>> 0) },
         { label: 'MODE', value: difficulty.toUpperCase() },
       ]}
-      dialogTitle="同じゲームを共有"
+      dialogTitle={copy.gameDialog}
       eyebrow="SEEDED GAME"
-      shareText={`${title} 同じ問題に挑戦できます。`}
+      shareText={copy.gameShareText(title)}
       shareUrl={shareUrl}
       title={title}
       tooltip={
         disabled
-          ? disabledReason
-          : '同じseedのゲームをURLとQRコードで共有'
+          ? (disabledReason ?? copy.disabled)
+          : copy.gameTooltip
       }
       disabled={disabled}
     />
@@ -117,7 +165,8 @@ function ShareButton({
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [copyFailed, setCopyFailed] = useState(false)
-  const { playEffect } = useAppExperience()
+  const { playEffect, preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, SHARE_COPY)
   const { dialogRef, handleDialogKeyDown } =
     useDialogFocus<HTMLElement>(open, () => setOpen(false))
 
@@ -184,7 +233,7 @@ function ShareButton({
                 <p>{eyebrow}</p>
                 <h2 id="share-title">{dialogTitle}</h2>
               </div>
-              <button aria-label="共有画面を閉じる" onClick={() => setOpen(false)} type="button">
+              <button aria-label={copy.close} onClick={() => setOpen(false)} type="button">
                 <X aria-hidden="true" />
               </button>
             </header>
@@ -211,20 +260,20 @@ function ShareButton({
                   </dl>
                 ) : null}
                 <label>
-                  <span>共有URL</span>
+                  <span>{copy.shareUrl}</span>
                   <input readOnly value={shareUrl} />
                 </label>
                 <div className="share-actions">
                   <button className="command-button" onClick={share} type="button">
-                    <Share2 aria-hidden="true" /> OSで共有
+                    <Share2 aria-hidden="true" /> {copy.osShare}
                   </button>
                   <button onClick={copyShareUrl} type="button">
                     {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
                     {copied
-                      ? 'コピーしました'
+                      ? copy.copied
                       : copyFailed
-                        ? 'コピーできませんでした'
-                        : 'URLをコピー'}
+                        ? copy.copyFailed
+                        : copy.copyUrl}
                   </button>
                 </div>
               </div>
@@ -238,22 +287,24 @@ function ShareButton({
 }
 
 export function TopShareButton() {
+  const { preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, SHARE_COPY)
   const shareUrl = buildTopShareUrl(
     window.location.origin,
     import.meta.env.BASE_URL,
   )
   return (
     <ShareButton
-      accessibleLabel="トップページを共有"
-      buttonLabel="このページを共有"
+      accessibleLabel={copy.topAccessible}
+      buttonLabel={copy.topButton}
       className="title-share-button"
-      description="このQRコードまたはURLから、ちきちきパズルズのトップページを開けます。"
-      dialogTitle="トップページを共有"
+      description={copy.topDescription}
+      dialogTitle={copy.topDialog}
       eyebrow="SHARE HOME"
-      shareText="ちきちきパズルズで遊べます。"
+      shareText={copy.topShareText}
       shareUrl={shareUrl}
-      title="ちきちきパズルズ"
-      tooltip="トップページの固定URLを共有"
+      title={copy.topTitle}
+      tooltip={copy.topTooltip}
     />
   )
 }

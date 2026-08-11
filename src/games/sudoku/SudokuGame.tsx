@@ -8,6 +8,8 @@ import {
   RefreshCw,
   RotateCcw,
 } from 'lucide-react'
+import { GameHowTo } from '../../components/20260812_GameHowTo'
+import { getLocalizedCopy, type AppLanguage } from '../../i18n/20260812_i18n'
 import {
   ConfirmationModal,
   CountdownOverlay,
@@ -43,13 +45,86 @@ interface SudokuSession {
   values: number[]
 }
 
-const DIFFICULTY_LABELS: Record<SudokuDifficulty, string> = {
-  beginner: '入門',
-  easy: 'やさしい',
-  normal: 'ふつう',
-  hard: 'むずかしい',
-  expert: 'エキスパート',
-}
+const SUDOKU_COPY = {
+  ja: {
+    begin: (difficulty: string) => `${difficulty}で開始`,
+    board: '数独盤面',
+    checkMessage: '赤い数字が重複しています。',
+    clearMessage: '正解です。やったね！',
+    confirmMessage: '現在の進行状況は終了し、新しい問題を生成します。この操作は元に戻せません。',
+    confirmTitle: '難易度を変更しますか？',
+    correctTitle: '正解です',
+    difficulties: { beginner: '入門', easy: 'やさしい', normal: 'ふつう', hard: 'むずかしい', expert: 'エキスパート' },
+    difficulty: '難易度',
+    entryConfirmed: '確定',
+    entryLarge: '大きい数字',
+    entryMethod: '左クリックの入力方法',
+    entryNote: 'メモ',
+    entryPrompt: '左クリックの入力',
+    entrySmall: '小さい数字',
+    erase: '数字を消す',
+    eraseTooltip: '選択中のマスから数字を消す',
+    gameInfo: 'ゲーム情報',
+    guideLabel: (enabled: boolean) => `置ける数字のガイド ${enabled ? 'オン' : 'オフ'}`,
+    guideMessage: '選択中の空欄へ置ける数字を表示しています。',
+    guideTooltip: '選択中の空欄へ置ける数字を表示する',
+    highlightLabel: (enabled: boolean) => `同じ数字のハイライト ${enabled ? 'オン' : 'オフ'}`,
+    highlightTooltip: '選択中と同じ数字を盤面上で強調表示する',
+    hint: 'ヒント',
+    hintTooltip: '選択中の空欄に正解を1つ入力する',
+    input: '数字入力',
+    inputDigit: (digit: number, noteMode: boolean) => `${digit}を${noteMode ? '小さいメモ' : '大きい確定値'}として入力。右クリックでは常にメモ入力`,
+    keyboardMessage: '数字キーと矢印キーにも対応しています。',
+    newPuzzle: '新しい問題',
+    nextPuzzle: '次の問題',
+    note: 'メモ',
+    noteMessage: '候補の数字を複数記録できます。',
+    sharePuzzle: '同じ問題を共有',
+    subtitle: '一意解の盤面を完成しました。',
+    title: 'おーとまちっく数独',
+    undo: '元に戻す',
+    undoTooltip: '直前の数字またはメモを元に戻す',
+  },
+  en: {
+    begin: (difficulty: string) => `Start ${difficulty}`,
+    board: 'Sudoku board',
+    checkMessage: 'The red numbers are duplicated.',
+    clearMessage: 'Correct. Well done!',
+    confirmMessage: 'Your current progress will end and a new puzzle will be generated. This cannot be undone.',
+    confirmTitle: 'Change difficulty?',
+    correctTitle: 'Puzzle solved',
+    difficulties: { beginner: 'Beginner', easy: 'Easy', normal: 'Normal', hard: 'Hard', expert: 'Expert' },
+    difficulty: 'Difficulty',
+    entryConfirmed: 'Answer',
+    entryLarge: 'Large number',
+    entryMethod: 'Left-click input mode',
+    entryNote: 'Notes',
+    entryPrompt: 'Left-click input',
+    entrySmall: 'Small candidates',
+    erase: 'Erase number',
+    eraseTooltip: 'Clear the selected cell',
+    gameInfo: 'Game information',
+    guideLabel: (enabled: boolean) => `Candidate guide ${enabled ? 'on' : 'off'}`,
+    guideMessage: 'Possible numbers for the selected empty cell are shown.',
+    guideTooltip: 'Show possible numbers for the selected empty cell',
+    highlightLabel: (enabled: boolean) => `Matching-number highlight ${enabled ? 'on' : 'off'}`,
+    highlightTooltip: 'Highlight matching numbers on the board',
+    hint: 'Hint',
+    hintTooltip: 'Enter one correct answer in the selected empty cell',
+    input: 'Number input',
+    inputDigit: (digit: number, noteMode: boolean) => `Enter ${digit} as ${noteMode ? 'a small note' : 'a large answer'}. Right-click always enters a note.`,
+    keyboardMessage: 'Number keys and arrow keys are also supported.',
+    newPuzzle: 'New puzzle',
+    nextPuzzle: 'Next puzzle',
+    note: 'Notes',
+    noteMessage: 'You can record multiple candidate numbers.',
+    sharePuzzle: 'Share this puzzle',
+    subtitle: 'You completed a uniquely solvable puzzle.',
+    title: 'Automatic Sudoku',
+    undo: 'Undo',
+    undoTooltip: 'Undo the previous answer or note',
+  },
+} as const
 
 function nextSeed(): number {
   return Date.now() >>> 0
@@ -109,16 +184,19 @@ function describeSudokuCell(
   index: number,
   value: number,
   notes: number,
+  language: AppLanguage,
 ): string {
-  const location = `行${Math.floor(index / 9) + 1} 列${(index % 9) + 1}`
+  const row = Math.floor(index / 9) + 1
+  const column = (index % 9) + 1
+  const location = language === 'ja' ? `行${row} 列${column}` : `Row ${row}, column ${column}`
   if (value !== 0) {
-    return `${location} 数字${value}`
+    return language === 'ja' ? `${location} 数字${value}` : `${location}, number ${value}`
   }
   const noteDigits = Array.from({ length: 9 }, (_, offset) => offset + 1)
     .filter((digit) => (notes & (1 << digit)) !== 0)
   return noteDigits.length > 0
-    ? `${location} メモ ${noteDigits.join('、')}`
-    : `${location} 空欄`
+    ? language === 'ja' ? `${location} メモ ${noteDigits.join('、')}` : `${location}, notes ${noteDigits.join(', ')}`
+    : language === 'ja' ? `${location} 空欄` : `${location}, empty`
 }
 
 export function SudokuGame() {
@@ -140,7 +218,8 @@ export function SudokuGame() {
   const [history, setHistory] = useState<SudokuHistoryEntry[]>([])
   const [pulseCell, setPulseCell] = useState<number | null>(null)
   const [resultOpen, setResultOpen] = useState(session.status === 'won')
-  const { playEffect } = useAppExperience()
+  const { playEffect, preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, SUDOKU_COPY)
   const { countdown, isCountingDown, restartCountdown } = useGameCountdown(
     session.elapsedSeconds === 0 && session.status === 'playing',
   )
@@ -350,18 +429,18 @@ export function SudokuGame() {
       <header className="game-heading">
         <div>
           <p className="eyebrow">2006 / 2011 REBUILD</p>
-          <h1 id="sudoku-title">おーとまちっく数独</h1>
+          <h1 id="sudoku-title">{copy.title}</h1>
         </div>
-        <div className="game-metrics" aria-label="ゲーム情報">
+        <div className="game-metrics" aria-label={copy.gameInfo}>
           <span><strong>{formatElapsedTime(session.elapsedSeconds)}</strong> TIME</span>
           <span><strong>{session.hintsUsed}</strong> HINT</span>
           <span><strong>{session.puzzle.puzzle.filter(Boolean).length}</strong> CLUE</span>
         </div>
       </header>
 
-      <div className="difficulty-row" aria-label="難易度">
+      <div className="difficulty-row" aria-label={copy.difficulty}>
         <div className="segmented-control">
-          {(Object.keys(DIFFICULTY_LABELS) as SudokuDifficulty[]).map(
+          {(Object.keys(copy.difficulties) as SudokuDifficulty[]).map(
             (difficulty) => (
               <button
                 aria-pressed={session.puzzle.difficulty === difficulty}
@@ -370,7 +449,7 @@ export function SudokuGame() {
                 onClick={() => requestDifficultyChange(difficulty)}
                 type="button"
               >
-                {DIFFICULTY_LABELS[difficulty]}
+                {copy.difficulties[difficulty]}
               </button>
             ),
           )}
@@ -380,20 +459,22 @@ export function SudokuGame() {
             difficulty={session.puzzle.difficulty}
             game="sudoku"
             seed={session.puzzle.seed}
-            title="おーとまちっく数独"
+            title={copy.title}
           />
           <button
             className="command-button"
             onClick={() => startNewGame(session.puzzle.difficulty)}
             type="button"
           >
-            <RefreshCw aria-hidden="true" size={17} /> 新しい問題
+            <RefreshCw aria-hidden="true" size={17} /> {copy.newPuzzle}
           </button>
         </div>
       </div>
 
+      <GameHowTo game="sudoku" />
+
       <div className="sudoku-layout">
-        <div className="sudoku-board" role="grid" aria-label="数独盤面">
+        <div className="sudoku-board" role="grid" aria-label={copy.board}>
           {session.values.map((value, index) => {
             const given = session.puzzle.puzzle[index] !== 0
             const peer = index !== selected && isPeer(index, selected)
@@ -417,7 +498,7 @@ export function SudokuGame() {
               .join(' ')
             return (
               <button
-                aria-label={describeSudokuCell(index, value, session.notes[index])}
+                aria-label={describeSudokuCell(index, value, session.notes[index], preferences.language)}
                 className={classes}
                 data-sudoku-cell={index}
                 data-tooltip-disabled="true"
@@ -447,7 +528,7 @@ export function SudokuGame() {
                 {value !== 0 ? (
                   <span className="cell-value">{value}</span>
                 ) : session.notes[index] !== 0 ? (
-                  <span className="cell-notes" aria-label="メモ">
+                  <span className="cell-notes" aria-label={copy.note}>
                     {Array.from({ length: 9 }, (_, offset) => offset + 1).map(
                       (digit) => (
                         <span key={digit}>
@@ -468,10 +549,10 @@ export function SudokuGame() {
           })}
         </div>
 
-        <aside className="number-console" aria-label="数字入力">
+        <aside className="number-console" aria-label={copy.input}>
           <div className="entry-mode-picker">
-            <span>左クリックの入力</span>
-            <div className="entry-mode-control" aria-label="左クリックの入力方法">
+            <span>{copy.entryPrompt}</span>
+            <div className="entry-mode-control" aria-label={copy.entryMethod}>
               <button
                 aria-pressed={!noteMode}
                 className={!noteMode ? 'active' : ''}
@@ -482,7 +563,7 @@ export function SudokuGame() {
                 type="button"
               >
                 <b className="entry-mode-value" aria-hidden="true">5</b>
-                <span><strong>確定</strong><small>大きい数字</small></span>
+                <span><strong>{copy.entryConfirmed}</strong><small>{copy.entryLarge}</small></span>
               </button>
               <button
                 aria-pressed={noteMode}
@@ -494,14 +575,14 @@ export function SudokuGame() {
                 type="button"
               >
                 <b className="entry-mode-note" aria-hidden="true">5</b>
-                <span><strong>メモ</strong><small>小さい数字</small></span>
+                <span><strong>{copy.entryNote}</strong><small>{copy.entrySmall}</small></span>
               </button>
             </div>
           </div>
           <div className="number-pad">
             {Array.from({ length: 9 }, (_, index) => index + 1).map((digit) => (
               <button
-                aria-label={`${digit}を${noteMode ? '小さいメモ' : '大きい確定値'}として入力。右クリックでは常にメモ入力`}
+                aria-label={copy.inputDigit(digit, noteMode)}
                 data-tooltip-disabled="true"
                 key={digit}
                 onClick={() => enterDigit(digit)}
@@ -517,8 +598,8 @@ export function SudokuGame() {
           </div>
           <div className="tool-row">
             <button
-              aria-label="元に戻す"
-              data-tooltip="直前の数字またはメモを元に戻す"
+              aria-label={copy.undo}
+              data-tooltip={copy.undoTooltip}
               disabled={history.length === 0}
               onClick={undo}
               type="button"
@@ -526,18 +607,18 @@ export function SudokuGame() {
               <RotateCcw aria-hidden="true" />
             </button>
             <button
-              aria-label="数字を消す"
-              data-tooltip="選択中のマスから数字を消す"
+              aria-label={copy.erase}
+              data-tooltip={copy.eraseTooltip}
               onClick={() => enterDigit(0)}
               type="button"
             >
               <Eraser aria-hidden="true" />
             </button>
             <button
-              aria-label={`置ける数字のガイド ${placementGuide ? 'オン' : 'オフ'}`}
+              aria-label={copy.guideLabel(placementGuide)}
               aria-pressed={placementGuide}
               className={placementGuide ? 'active' : ''}
-              data-tooltip="選択中の空欄へ置ける数字を表示する"
+              data-tooltip={copy.guideTooltip}
               onClick={() => {
                 setPlacementGuide((current) => !current)
                 playEffect('select')
@@ -547,10 +628,10 @@ export function SudokuGame() {
               {placementGuide ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
             </button>
             <button
-              aria-label={`同じ数字のハイライト ${sameNumberHighlight ? 'オン' : 'オフ'}`}
+              aria-label={copy.highlightLabel(sameNumberHighlight)}
               aria-pressed={sameNumberHighlight}
               className={sameNumberHighlight ? 'active' : ''}
-              data-tooltip="選択中と同じ数字を盤面上で強調表示する"
+              data-tooltip={copy.highlightTooltip}
               onClick={() => {
                 setSameNumberHighlight((current) => !current)
                 playEffect('select')
@@ -560,8 +641,8 @@ export function SudokuGame() {
               <Highlighter aria-hidden="true" />
             </button>
             <button
-              aria-label="ヒント"
-              data-tooltip="選択中の空欄に正解を1つ入力する"
+              aria-label={copy.hint}
+              data-tooltip={copy.hintTooltip}
               onClick={revealHint}
               type="button"
             >
@@ -570,15 +651,15 @@ export function SudokuGame() {
           </div>
           <div className={`game-message ${session.status === 'won' ? 'success' : ''}`} aria-live="polite">
             {session.status === 'won' ? (
-              <><strong>CORRECT!</strong><span>正解です。やったね！</span></>
+              <><strong>CORRECT!</strong><span>{copy.clearMessage}</span></>
             ) : conflicts.size > 0 ? (
-              <><strong>CHECK</strong><span>赤い数字が重複しています。</span></>
+              <><strong>CHECK</strong><span>{copy.checkMessage}</span></>
             ) : noteMode ? (
-              <><strong>NOTE MODE</strong><span>候補の数字を複数記録できます。</span></>
+              <><strong>NOTE MODE</strong><span>{copy.noteMessage}</span></>
             ) : placementGuide ? (
-              <><strong>PLACEMENT GUIDE</strong><span>選択中の空欄へ置ける数字を表示しています。</span></>
+              <><strong>PLACEMENT GUIDE</strong><span>{copy.guideMessage}</span></>
             ) : (
-              <><strong>PLAYING</strong><span>数字キーと矢印キーにも対応しています。</span></>
+              <><strong>PLAYING</strong><span>{copy.keyboardMessage}</span></>
             )}
           </div>
           {session.status === 'won' && !resultOpen ? (
@@ -591,29 +672,29 @@ export function SudokuGame() {
         onClose={() => setResultOpen(false)}
         onPrimary={() => startNewGame(session.puzzle.difficulty)}
         open={resultOpen}
-        primaryLabel="次の問題"
+        primaryLabel={copy.nextPuzzle}
         shareAction={(
           <GameShareButton
-            buttonLabel="同じ問題を共有"
+            buttonLabel={copy.sharePuzzle}
             className="result-share-button"
             difficulty={session.puzzle.difficulty}
             game="sudoku"
             seed={session.puzzle.seed}
-            title="おーとまちっく数独"
+            title={copy.title}
           />
         )}
         stats={[
           { label: 'TIME', value: formatElapsedTime(session.elapsedSeconds) },
-          { label: 'DIFFICULTY', value: DIFFICULTY_LABELS[session.puzzle.difficulty] },
+          { label: 'DIFFICULTY', value: copy.difficulties[session.puzzle.difficulty] },
           { label: 'RATING', value: String(session.puzzle.analysis.rating) },
           { label: 'HINT / MISS', value: `${session.hintsUsed} / ${session.mistakes}` },
         ]}
-        subtitle="一意解の盤面を完成しました。"
-        title="正解です"
+        subtitle={copy.subtitle}
+        title={copy.correctTitle}
       />
       <ConfirmationModal
-        confirmLabel={`${pendingDifficulty ? DIFFICULTY_LABELS[pendingDifficulty] : ''}で開始`}
-        message="現在の進行状況は終了し、新しい問題を生成します。この操作は元に戻せません。"
+        confirmLabel={copy.begin(pendingDifficulty ? copy.difficulties[pendingDifficulty] : '')}
+        message={copy.confirmMessage}
         onCancel={() => setPendingDifficulty(null)}
         onConfirm={() => {
           if (pendingDifficulty) {
@@ -622,7 +703,7 @@ export function SudokuGame() {
           setPendingDifficulty(null)
         }}
         open={pendingDifficulty !== null}
-        title="難易度を変更しますか？"
+        title={copy.confirmTitle}
       />
     </section>
   )

@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import {
+  Languages,
   Music2,
   Palette,
   SlidersHorizontal,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useStoredState } from '../lib/storage'
 import { useDialogFocus } from '../lib/20260811_dialogFocus'
+import { getLocalizedCopy, type AppLanguage } from '../i18n/20260812_i18n'
 import { getBgmGain } from './20260811_audio'
 
 export type Appearance = 'light' | 'dark'
@@ -43,6 +45,7 @@ interface AppPreferences {
   bgmVolume: number
   colorTheme: ColorTheme
   effectsEnabled: boolean
+  language: AppLanguage
   penStabilizationEnabled: boolean
   pointerMarkerEnabled: boolean
   sfxEnabled: boolean
@@ -58,6 +61,7 @@ interface ExperienceContextValue {
   setBgmVolume: (volume: number) => void
   setColorTheme: (theme: ColorTheme) => void
   setEffectsEnabled: (enabled: boolean) => void
+  setLanguage: (language: AppLanguage) => void
   setPenStabilizationEnabled: (enabled: boolean) => void
   setPointerMarkerEnabled: (enabled: boolean) => void
   setSfxEnabled: (enabled: boolean) => void
@@ -96,15 +100,78 @@ const ExperienceContext = createContext<ExperienceContextValue | null>(null)
 const THEMES: Array<{
   colors: [string, string, string]
   id: ColorTheme
-  label: string
+  label: Record<AppLanguage, string>
 }> = [
-  { id: 'archive', label: 'アーカイブ', colors: ['#173f37', '#efb23d', '#d9674d'] },
-  { id: 'ocean', label: 'オーシャン', colors: ['#154c79', '#55b7c5', '#f0bd55'] },
-  { id: 'sakura', label: 'サクラ', colors: ['#713d51', '#dc8e9f', '#87a88a'] },
-  { id: 'arcade', label: 'アーケード', colors: ['#272445', '#46c6a8', '#f15b76'] },
+  { id: 'archive', label: { ja: 'アーカイブ', en: 'Archive' }, colors: ['#173f37', '#efb23d', '#d9674d'] },
+  { id: 'ocean', label: { ja: 'オーシャン', en: 'Ocean' }, colors: ['#154c79', '#55b7c5', '#f0bd55'] },
+  { id: 'sakura', label: { ja: 'サクラ', en: 'Sakura' }, colors: ['#713d51', '#dc8e9f', '#87a88a'] },
+  { id: 'arcade', label: { ja: 'アーケード', en: 'Arcade' }, colors: ['#272445', '#46c6a8', '#f15b76'] },
 ]
 
 const BGM_NOTES = [261.63, 329.63, 392, 493.88, 440, 392, 329.63, 293.66]
+
+const EXPERIENCE_COPY = {
+  ja: {
+    animations: 'アニメーションと追加リアクション',
+    appearance: '明るさ',
+    bgmPlaying: 'プレイ中のBGM',
+    bgmVolume: 'BGM音量',
+    cancel: 'キャンセル',
+    closeResults: '成績画面を閉じる',
+    closeSettings: '設定を閉じる',
+    colorTheme: 'カラーテーマ',
+    dark: 'ダーク',
+    displayEffects: '画面演出',
+    english: 'English',
+    grade: '評価',
+    japanese: '日本語',
+    language: '表示言語',
+    light: 'ライト',
+    penStabilization: 'ペン入力を安定化',
+    penTooltip: 'ペンでゲームを操作している間、ゲーム内ボタン上のスクロールを抑止します',
+    pointerMarker: 'マウス位置の丸いマーカー',
+    resultReopen: '成績を見る',
+    settings: '表示とサウンド',
+    settingsLabel: '表示・言語・サウンド設定',
+    settingsTooltip: '言語・テーマ・BGM・効果音を設定',
+    sfx: '効果音',
+    sfxPlaying: '操作と結果の効果音',
+    sfxVolume: '効果音量',
+    tooltips: '操作要素のツールチップ',
+    viewBoard: '盤面を見る',
+    volume: '音量',
+  },
+  en: {
+    animations: 'Animations and extra reactions',
+    appearance: 'Brightness',
+    bgmPlaying: 'Background music while playing',
+    bgmVolume: 'BGM volume',
+    cancel: 'Cancel',
+    closeResults: 'Close results',
+    closeSettings: 'Close settings',
+    colorTheme: 'Color theme',
+    dark: 'Dark',
+    displayEffects: 'Visual effects',
+    english: 'English',
+    grade: 'Grade',
+    japanese: '日本語',
+    language: 'Language',
+    light: 'Light',
+    penStabilization: 'Stabilize pen input',
+    penTooltip: 'Prevents browser scrolling over game controls while you are using a pen',
+    pointerMarker: 'Pointer position marker',
+    resultReopen: 'View results',
+    settings: 'Display and sound',
+    settingsLabel: 'Display, language, and sound settings',
+    settingsTooltip: 'Configure language, theme, music, and sound effects',
+    sfx: 'Sound effects',
+    sfxPlaying: 'Sounds for actions and results',
+    sfxVolume: 'Sound effect volume',
+    tooltips: 'Tooltips for controls',
+    viewBoard: 'View board',
+    volume: 'Volume',
+  },
+} as const
 
 function readInitialPreferences(): AppPreferences {
   let appearance: Appearance = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -124,6 +191,7 @@ function readInitialPreferences(): AppPreferences {
     bgmVolume: 0.32,
     colorTheme: 'archive',
     effectsEnabled: true,
+    language: navigator.language.toLowerCase().startsWith('ja') ? 'ja' : 'en',
     penStabilizationEnabled: true,
     pointerMarkerEnabled: false,
     sfxEnabled: true,
@@ -132,6 +200,7 @@ function readInitialPreferences(): AppPreferences {
   }
   try {
     const currentPreferences =
+      window.localStorage.getItem('chikichiki:preferences:v6') ??
       window.localStorage.getItem('chikichiki:preferences:v5') ??
       window.localStorage.getItem('chikichiki:preferences:v4')
     if (currentPreferences) {
@@ -209,7 +278,7 @@ function createBgmTone(
 
 export function AppExperienceProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useStoredState<AppPreferences>(
-    'chikichiki:preferences:v6',
+    'chikichiki:preferences:v7',
     readInitialPreferences,
   )
   const [audioRevision, setAudioRevision] = useState(0)
@@ -321,6 +390,7 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = preferences.appearance
+    document.documentElement.lang = preferences.language
     document.documentElement.dataset.colorTheme = preferences.colorTheme
     document.documentElement.dataset.effects = preferences.effectsEnabled ? 'on' : 'off'
     document.documentElement.dataset.penStabilization =
@@ -332,6 +402,7 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
     preferences.appearance,
     preferences.colorTheme,
     preferences.effectsEnabled,
+    preferences.language,
     preferences.penStabilizationEnabled,
     preferences.pointerMarkerEnabled,
   ])
@@ -402,6 +473,7 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
         setBgmVolume: (bgmVolume) => updatePreferences({ bgmVolume }),
         setColorTheme: (colorTheme) => updatePreferences({ colorTheme }),
         setEffectsEnabled: (effectsEnabled) => updatePreferences({ effectsEnabled }),
+        setLanguage: (language) => updatePreferences({ language }),
         setPenStabilizationEnabled: (penStabilizationEnabled) =>
           updatePreferences({ penStabilizationEnabled }),
         setPointerMarkerEnabled: (pointerMarkerEnabled) =>
@@ -433,6 +505,7 @@ export function SettingsPanel({
   open: boolean
 }) {
   const experience = useAppExperience()
+  const copy = getLocalizedCopy(experience.preferences.language, EXPERIENCE_COPY)
   const { dialogRef, handleDialogKeyDown } =
     useDialogFocus<HTMLElement>(open, onClose)
 
@@ -455,15 +528,37 @@ export function SettingsPanel({
         <header>
           <div>
             <p>APP PREFERENCES</p>
-            <h2 id="settings-title">表示とサウンド</h2>
+            <h2 id="settings-title">{copy.settings}</h2>
           </div>
-          <button aria-label="設定を閉じる" onClick={onClose} type="button">
+          <button aria-label={copy.closeSettings} onClick={onClose} type="button">
             <X aria-hidden="true" />
           </button>
         </header>
 
         <fieldset>
-          <legend><Palette aria-hidden="true" /> カラーテーマ</legend>
+          <legend><Languages aria-hidden="true" /> {copy.language}</legend>
+          <div className="appearance-control" aria-label={copy.language}>
+            <button
+              aria-pressed={experience.preferences.language === 'ja'}
+              className={experience.preferences.language === 'ja' ? 'active' : ''}
+              onClick={() => experience.setLanguage('ja')}
+              type="button"
+            >
+              {copy.japanese}
+            </button>
+            <button
+              aria-pressed={experience.preferences.language === 'en'}
+              className={experience.preferences.language === 'en' ? 'active' : ''}
+              onClick={() => experience.setLanguage('en')}
+              type="button"
+            >
+              {copy.english}
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend><Palette aria-hidden="true" /> {copy.colorTheme}</legend>
           <div className="theme-swatches">
             {THEMES.map((theme) => (
               <button
@@ -478,18 +573,18 @@ export function SettingsPanel({
                     <i key={color} style={{ backgroundColor: color }} />
                   ))}
                 </span>
-                {theme.label}
+                {theme.label[experience.preferences.language]}
               </button>
             ))}
           </div>
-          <div className="appearance-control" aria-label="明るさ">
+          <div className="appearance-control" aria-label={copy.appearance}>
             <button
               aria-pressed={experience.preferences.appearance === 'light'}
               className={experience.preferences.appearance === 'light' ? 'active' : ''}
               onClick={() => experience.setAppearance('light')}
               type="button"
             >
-              ライト
+              {copy.light}
             </button>
             <button
               aria-pressed={experience.preferences.appearance === 'dark'}
@@ -497,7 +592,7 @@ export function SettingsPanel({
               onClick={() => experience.setAppearance('dark')}
               type="button"
             >
-              ダーク
+              {copy.dark}
             </button>
           </div>
         </fieldset>
@@ -505,7 +600,7 @@ export function SettingsPanel({
         <fieldset>
           <legend><Music2 aria-hidden="true" /> BGM</legend>
           <label className="sound-toggle">
-            <span>プレイ中のBGM</span>
+            <span>{copy.bgmPlaying}</span>
             <input
               checked={experience.preferences.bgmEnabled}
               onChange={(event) => experience.setBgmEnabled(event.target.checked)}
@@ -515,9 +610,9 @@ export function SettingsPanel({
           </label>
           <label className="volume-control">
             <Volume2 aria-hidden="true" />
-            <span>音量</span>
+            <span>{copy.volume}</span>
             <input
-              aria-label="BGM音量"
+              aria-label={copy.bgmVolume}
               max="1"
               min="0"
               onChange={(event) => experience.setBgmVolume(Number(event.target.value))}
@@ -530,9 +625,9 @@ export function SettingsPanel({
         </fieldset>
 
         <fieldset>
-          <legend><Sparkles aria-hidden="true" /> 効果音</legend>
+          <legend><Sparkles aria-hidden="true" /> {copy.sfx}</legend>
           <label className="sound-toggle">
-            <span>操作と結果の効果音</span>
+            <span>{copy.sfxPlaying}</span>
             <input
               checked={experience.preferences.sfxEnabled}
               onChange={(event) => experience.setSfxEnabled(event.target.checked)}
@@ -542,9 +637,9 @@ export function SettingsPanel({
           </label>
           <label className="volume-control">
             <Volume2 aria-hidden="true" />
-            <span>音量</span>
+            <span>{copy.volume}</span>
             <input
-              aria-label="効果音量"
+              aria-label={copy.sfxVolume}
               max="1"
               min="0"
               onChange={(event) => experience.setSfxVolume(Number(event.target.value))}
@@ -556,9 +651,9 @@ export function SettingsPanel({
           </label>
         </fieldset>
         <fieldset>
-          <legend><SlidersHorizontal aria-hidden="true" /> 画面演出</legend>
+          <legend><SlidersHorizontal aria-hidden="true" /> {copy.displayEffects}</legend>
           <label className="sound-toggle">
-            <span>マウス位置の丸いマーカー</span>
+            <span>{copy.pointerMarker}</span>
             <input
               checked={experience.preferences.pointerMarkerEnabled}
               onChange={(event) =>
@@ -569,7 +664,7 @@ export function SettingsPanel({
             <i aria-hidden="true" />
           </label>
           <label className="sound-toggle">
-            <span>アニメーションと追加リアクション</span>
+            <span>{copy.animations}</span>
             <input
               checked={experience.preferences.effectsEnabled}
               onChange={(event) =>
@@ -580,7 +675,7 @@ export function SettingsPanel({
             <i aria-hidden="true" />
           </label>
           <label className="sound-toggle">
-            <span>操作要素のツールチップ</span>
+            <span>{copy.tooltips}</span>
             <input
               checked={experience.preferences.tooltipsEnabled}
               onChange={(event) =>
@@ -592,9 +687,9 @@ export function SettingsPanel({
           </label>
           <label
             className="sound-toggle"
-            data-tooltip="ペンでゲームを操作している間、ゲーム内ボタン上のスクロールを抑止します"
+            data-tooltip={copy.penTooltip}
           >
-            <span>ペン入力を安定化</span>
+            <span>{copy.penStabilization}</span>
             <input
               checked={experience.preferences.penStabilizationEnabled}
               onChange={(event) =>
@@ -824,6 +919,8 @@ export function ConfirmationModal({
   open,
   title,
 }: ConfirmationModalProps) {
+  const { preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, EXPERIENCE_COPY)
   const { dialogRef, handleDialogKeyDown } =
     useDialogFocus<HTMLElement>(open, onCancel)
 
@@ -847,7 +944,7 @@ export function ConfirmationModal({
         <h2 id="confirmation-title">{title}</h2>
         <span>{message}</span>
         <div className="confirmation-actions">
-          <button onClick={onCancel} type="button">キャンセル</button>
+          <button onClick={onCancel} type="button">{copy.cancel}</button>
           <button className="command-button" onClick={onConfirm} type="button">
             {confirmLabel}
           </button>
@@ -869,6 +966,8 @@ export function ResultModal({
   subtitle,
   title,
 }: ResultModalProps) {
+  const { preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, EXPERIENCE_COPY)
   const { dialogRef, handleDialogKeyDown } =
     useDialogFocus<HTMLElement>(open, onClose)
 
@@ -879,11 +978,11 @@ export function ResultModal({
     <div className="result-backdrop">
       <section aria-labelledby="result-title" aria-modal="true" className="result-modal" onKeyDown={handleDialogKeyDown} ref={dialogRef} role="dialog" tabIndex={-1}>
         <div aria-hidden="true" className="result-rays" />
-        <button aria-label="成績画面を閉じる" className="result-close" onClick={onClose} type="button">
+        <button aria-label={copy.closeResults} className="result-close" onClick={onClose} type="button">
           <X aria-hidden="true" />
         </button>
         <p>RESULT</p>
-        <div className="result-grade" aria-label={`評価 ${grade}`}>{grade}</div>
+        <div className="result-grade" aria-label={`${copy.grade} ${grade}`}>{grade}</div>
         <h2 id="result-title">{title}</h2>
         <span className="result-subtitle">{subtitle}</span>
         <dl>
@@ -896,7 +995,7 @@ export function ResultModal({
         </dl>
         <div className="result-actions">
           <button className="command-button" onClick={onPrimary} type="button">{primaryLabel}</button>
-          <button onClick={onClose} type="button">盤面を見る</button>
+          <button onClick={onClose} type="button">{copy.viewBoard}</button>
           {shareAction}
         </div>
       </section>
@@ -906,10 +1005,12 @@ export function ResultModal({
 }
 
 export function SettingsButton({ onClick }: { onClick: () => void }) {
+  const { preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, EXPERIENCE_COPY)
   return (
     <button
-      aria-label="表示とサウンド設定"
-      data-tooltip="テーマ・BGM・効果音を設定"
+      aria-label={copy.settingsLabel}
+      data-tooltip={copy.settingsTooltip}
       onClick={onClick}
       type="button"
     >
@@ -919,9 +1020,11 @@ export function SettingsButton({ onClick }: { onClick: () => void }) {
 }
 
 export function ResultReopenButton({ onClick }: { onClick: () => void }) {
+  const { preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, EXPERIENCE_COPY)
   return (
     <button className="result-reopen-button" onClick={onClick} type="button">
-      <Trophy aria-hidden="true" /> 成績を見る
+      <Trophy aria-hidden="true" /> {copy.resultReopen}
     </button>
   )
 }

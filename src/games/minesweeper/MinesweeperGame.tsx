@@ -14,6 +14,8 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
+import { GameHowTo } from '../../components/20260812_GameHowTo'
+import { getLocalizedCopy, type AppLanguage } from '../../i18n/20260812_i18n'
 import {
   ConfirmationModal,
   CountdownOverlay,
@@ -70,12 +72,107 @@ interface TouchGesture {
 
 const CONFIGURATIONS: Record<
   MineDifficulty,
-  MineConfiguration & { label: string }
+  MineConfiguration
 > = {
-  beginner: { width: 10, height: 10, mineCount: 10, label: '初級' },
-  intermediate: { width: 20, height: 20, mineCount: 60, label: '中級' },
-  expert: { width: 40, height: 40, mineCount: 320, label: '上級' },
+  beginner: { width: 10, height: 10, mineCount: 10 },
+  intermediate: { width: 20, height: 20, mineCount: 60 },
+  expert: { width: 40, height: 40, mineCount: 320 },
 }
+
+const MINE_COPY = {
+  ja: {
+    actualMine: '赤い爆弾',
+    actualMineDescription: '実際の地雷',
+    actualMineTooltip: 'ゲーム終了時に赤く表示される、実際に配置された地雷',
+    begin: (difficulty: string) => `${difficulty}で開始`,
+    cleared: 'すべての安全なマスを開きました。',
+    classic: 'オリジナル同様、局面によって推測が必要です。',
+    confirmMessage: '現在の盤面とスコアは終了し、新しい地雷原を生成します。この操作は元に戻せません。',
+    confirmTitle: '難易度を変更しますか？',
+    detonated: '黄色い輪',
+    detonatedDescription: '踏んだ地雷',
+    detonatedTooltip: 'ゲームオーバーの原因になった地雷は黄色い二重輪で表示されます',
+    difficulties: { beginner: '初級', intermediate: '中級', expert: '上級' },
+    difficulty: '難易度',
+    flag: '旗',
+    flagDescription: '地雷候補・正誤未判定',
+    flagTooltip: '自分で置いた地雷候補。色は正解または不正解を示しません',
+    gameInfo: 'ゲーム情報',
+    gameOver: '地雷を開きました。新しい盤面でもう一度。',
+    guessFree: '推測不要',
+    guessFreeDescription: '論理だけで解ける盤面',
+    guessFreeLabel: '推測不要モード',
+    guessFreeMessage: '数字から確定できる手だけで最後まで進めます。',
+    guessFreeTooltip: 'ONでは公開された数字だけで完走できる盤面を生成します。OFFでは初手安全のみのクラシック配置に戻ります',
+    legend: '記号と色の説明',
+    lostSubtitle: '地雷を開きました。スコアは次の挑戦へ持ち越されません。',
+    newBoard: '新しい盤面',
+    nextBoard: '次の盤面',
+    openedCells: (cells: number, points: number, intensity: number) => `${cells}マスを開いて${points}点獲得しました。倍率は${intensity}です。`,
+    playing: '右クリックまたは長押しで、旗 → ? → 解除。数字を再度押すと周囲を開きます。',
+    questionDescription: '判断保留',
+    questionTooltip: '地雷か判断できないマスの仮マーク。MINE残数には数えません',
+    readyClassic: '最初に開くマスと、その周囲には地雷がありません。',
+    readyGuessFree: '最初の一手から、推測せずに完走できる盤面を生成します。',
+    retry: 'もう一度',
+    scrollBoard: 'スクロール可能な地雷原',
+    shareBoard: '同じ盤面を共有',
+    shareDisabled: '最初のマスを開くと、同じ地雷配置を共有できます',
+    shrink: '縮小',
+    shrinkTooltip: '盤面を縮小',
+    title: 'ちきちきまいんすいーぱ。',
+    victorySubtitle: 'すべての安全なマスを開きました。',
+    victoryTitle: '地雷原を制覇',
+    zoom: '拡大',
+    zoomTooltip: '盤面を拡大',
+  },
+  en: {
+    actualMine: 'Red bomb',
+    actualMineDescription: 'Actual mine',
+    actualMineTooltip: 'A mine that was actually placed, shown in red after the game ends',
+    begin: (difficulty: string) => `Start ${difficulty}`,
+    cleared: 'You opened every safe cell.',
+    classic: 'Like the original game, some positions may require a guess.',
+    confirmMessage: 'Your current board and score will end and a new minefield will be generated. This cannot be undone.',
+    confirmTitle: 'Change difficulty?',
+    detonated: 'Yellow ring',
+    detonatedDescription: 'Mine you hit',
+    detonatedTooltip: 'The mine that ended the game is marked with a double yellow ring',
+    difficulties: { beginner: 'Beginner', intermediate: 'Intermediate', expert: 'Expert' },
+    difficulty: 'Difficulty',
+    flag: 'Flag',
+    flagDescription: 'Suspected mine, not yet verified',
+    flagTooltip: 'A suspected mine you marked. Its color does not indicate whether it is correct.',
+    gameInfo: 'Game information',
+    gameOver: 'You opened a mine. Try another board.',
+    guessFree: 'Guess-free',
+    guessFreeDescription: 'Solvable by logic alone',
+    guessFreeLabel: 'Guess-free mode',
+    guessFreeMessage: 'Every move can be determined from the visible numbers.',
+    guessFreeTooltip: 'On generates boards solvable from visible numbers alone. Off returns to a classic layout that only guarantees a safe first move.',
+    legend: 'Symbols and colors',
+    lostSubtitle: 'You opened a mine. Your score does not carry over to the next attempt.',
+    newBoard: 'New board',
+    nextBoard: 'Next board',
+    openedCells: (cells: number, points: number, intensity: number) => `Opened ${cells} cells for ${points} points at a ×${intensity} multiplier.`,
+    playing: 'Right-click or hold for Flag → ? → Clear. Press an open number again to open its neighbors.',
+    questionDescription: 'Undecided',
+    questionTooltip: 'A temporary mark for an uncertain cell. It is not counted in the remaining mines.',
+    readyClassic: 'Your first cell and all eight neighbors are safe.',
+    readyGuessFree: 'Your first move creates a board that can be completed without guessing.',
+    retry: 'Try again',
+    scrollBoard: 'Scrollable minefield',
+    shareBoard: 'Share this board',
+    shareDisabled: 'Open the first cell before sharing this exact mine layout',
+    shrink: 'Zoom out',
+    shrinkTooltip: 'Make the board smaller',
+    title: 'Chikichiki Minesweeper',
+    victorySubtitle: 'You opened every safe cell.',
+    victoryTitle: 'Minefield cleared',
+    zoom: 'Zoom in',
+    zoomTooltip: 'Make the board larger',
+  },
+} as const
 
 function isMineDifficulty(value: string | null): value is MineDifficulty {
   return value === 'beginner' || value === 'intermediate' || value === 'expert'
@@ -141,16 +238,17 @@ function getMineGrade(session: MineSession): string {
   return 'C'
 }
 
-function describeCell(board: MineBoard, index: number): string {
+function describeCell(board: MineBoard, index: number, language: AppLanguage): string {
   const row = Math.floor(index / board.width) + 1
   const column = (index % board.width) + 1
   const cell = board.cells[index]
-  if (board.detonatedIndex === index) return `行${row} 列${column} 踏んだ地雷`
-  if (cell.state === 'flagged') return `行${row} 列${column} 旗`
-  if (cell.state === 'questioned') return `行${row} 列${column} はてなマーク`
-  if (cell.state === 'hidden') return `行${row} 列${column} 未開封`
-  if (cell.mine) return `行${row} 列${column} 地雷`
-  return `行${row} 列${column} 周囲の地雷${cell.adjacent}`
+  const location = language === 'ja' ? `行${row} 列${column}` : `Row ${row}, column ${column}`
+  if (board.detonatedIndex === index) return language === 'ja' ? `${location} 踏んだ地雷` : `${location}, detonated mine`
+  if (cell.state === 'flagged') return language === 'ja' ? `${location} 旗` : `${location}, flag`
+  if (cell.state === 'questioned') return language === 'ja' ? `${location} はてなマーク` : `${location}, question mark`
+  if (cell.state === 'hidden') return language === 'ja' ? `${location} 未開封` : `${location}, hidden`
+  if (cell.mine) return language === 'ja' ? `${location} 地雷` : `${location}, mine`
+  return language === 'ja' ? `${location} 周囲の地雷${cell.adjacent}` : `${location}, ${cell.adjacent} adjacent mines`
 }
 
 export function MinesweeperGame() {
@@ -183,7 +281,9 @@ export function MinesweeperGame() {
   const suppressContextMenuTimer = useRef<number | null>(null)
   const cascadeTimer = useRef<number | null>(null)
   const cascadeId = useRef(0)
-  const { playEffect } = useAppExperience()
+  const { playEffect, preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, MINE_COPY)
+  const locale = preferences.language === 'ja' ? 'ja-JP' : 'en-US'
   const { countdown, isCountingDown, restartCountdown } = useGameCountdown(
     session.elapsedSeconds === 0 &&
       (session.board.status === 'ready' || session.firstMoveIndex !== null),
@@ -430,11 +530,11 @@ export function MinesweeperGame() {
       <header className="game-heading">
         <div>
           <p className="eyebrow">2007 / COMPLETED EDITION</p>
-          <h1 id="mines-title">ちきちきまいんすいーぱ。</h1>
+          <h1 id="mines-title">{copy.title}</h1>
         </div>
-        <div className="game-metrics" aria-label="ゲーム情報">
+        <div className="game-metrics" aria-label={copy.gameInfo}>
           <span><strong>{formatElapsedTime(session.elapsedSeconds)}</strong> TIME</span>
-          <span><strong>{session.score.toLocaleString()}</strong> SCORE</span>
+          <span><strong>{session.score.toLocaleString(locale)}</strong> SCORE</span>
           <span><strong>{board.mineCount - flags}</strong> MINE</span>
           <span>
             <strong>
@@ -445,14 +545,14 @@ export function MinesweeperGame() {
             BEST TIME
           </span>
           <span>
-            <strong>{bestScores[session.difficulty].toLocaleString()}</strong>{' '}
+            <strong>{bestScores[session.difficulty].toLocaleString(locale)}</strong>{' '}
             BEST SCORE
           </span>
         </div>
       </header>
 
       <div className="difficulty-row">
-        <div className="segmented-control" aria-label="難易度">
+        <div className="segmented-control" aria-label={copy.difficulty}>
           {(Object.keys(CONFIGURATIONS) as MineDifficulty[]).map((difficulty) => {
             const configuration = CONFIGURATIONS[difficulty]
             return (
@@ -463,7 +563,7 @@ export function MinesweeperGame() {
                 onClick={() => requestDifficultyChange(difficulty)}
                 type="button"
               >
-                {configuration.label}
+                {copy.difficulties[difficulty]}
                 <small>{configuration.width}×{configuration.height}</small>
               </button>
             )
@@ -473,28 +573,28 @@ export function MinesweeperGame() {
           <GameShareButton
             difficulty={session.difficulty}
             disabled={session.firstMoveIndex === null}
-            disabledReason="最初のマスを開くと、同じ地雷配置を共有できます"
+            disabledReason={copy.shareDisabled}
             extraParameters={{
               first: session.firstMoveIndex,
               logic: board.generationMode === 'guess-free' ? 1 : 0,
             }}
             game="minesweeper"
             seed={board.seed}
-            title="ちきちきまいんすいーぱ。"
+            title={copy.title}
           />
           <button
-            aria-label="縮小"
+            aria-label={copy.shrink}
             disabled={cellSize <= 20}
-            data-tooltip="盤面を縮小"
+            data-tooltip={copy.shrinkTooltip}
             onClick={() => setCellSize((current) => Math.max(20, current - 4))}
             type="button"
           >
             <ZoomOut aria-hidden="true" />
           </button>
           <button
-            aria-label="拡大"
+            aria-label={copy.zoom}
             disabled={cellSize >= 40}
-            data-tooltip="盤面を拡大"
+            data-tooltip={copy.zoomTooltip}
             onClick={() => setCellSize((current) => Math.min(40, current + 4))}
             type="button"
           >
@@ -505,23 +605,25 @@ export function MinesweeperGame() {
             onClick={() => startNewGame(session.difficulty)}
             type="button"
           >
-            <RefreshCw aria-hidden="true" size={17} /> 新しい盤面
+            <RefreshCw aria-hidden="true" size={17} /> {copy.newBoard}
           </button>
         </div>
       </div>
 
+      <GameHowTo game="minesweeper" />
+
       <div className="mine-mode-row">
         <label
           className="sound-toggle mine-mode-toggle"
-          data-tooltip="ONでは公開された数字だけで完走できる盤面を生成します。OFFでは初手安全のみのクラシック配置に戻ります"
+          data-tooltip={copy.guessFreeTooltip}
         >
           <ShieldCheck aria-hidden="true" />
           <span>
-            <strong>推測不要</strong>
-            <small>論理だけで解ける盤面</small>
+            <strong>{copy.guessFree}</strong>
+            <small>{copy.guessFreeDescription}</small>
           </span>
           <input
-            aria-label="推測不要モード"
+            aria-label={copy.guessFreeLabel}
             checked={board.generationMode === 'guess-free'}
             onChange={(event) => startNewGame(
               session.difficulty,
@@ -533,34 +635,34 @@ export function MinesweeperGame() {
         </label>
         <p>
           {board.generationMode === 'guess-free'
-            ? '数字から確定できる手だけで最後まで進めます。'
-            : 'オリジナル同様、局面によって推測が必要です。'}
+            ? copy.guessFreeMessage
+            : copy.classic}
         </p>
       </div>
 
-      <div className="mine-legend" aria-label="記号と色の説明">
-        <span className="flag-legend" data-tooltip="自分で置いた地雷候補。色は正解または不正解を示しません">
+      <div className="mine-legend" aria-label={copy.legend}>
+        <span className="flag-legend" data-tooltip={copy.flagTooltip}>
           <Flag aria-hidden="true" fill="currentColor" />
-          <strong>旗</strong> 地雷候補・正誤未判定
+          <strong>{copy.flag}</strong> {copy.flagDescription}
         </span>
-        <span className="question-legend" data-tooltip="地雷か判断できないマスの仮マーク。MINE残数には数えません">
+        <span className="question-legend" data-tooltip={copy.questionTooltip}>
           <CircleQuestionMark aria-hidden="true" />
-          <strong>?</strong> 判断保留
+          <strong>?</strong> {copy.questionDescription}
         </span>
-        <span className="mine-legend-item" data-tooltip="ゲーム終了時に赤く表示される、実際に配置された地雷">
+        <span className="mine-legend-item" data-tooltip={copy.actualMineTooltip}>
           <Bomb aria-hidden="true" />
-          <strong>赤い爆弾</strong> 実際の地雷
+          <strong>{copy.actualMine}</strong> {copy.actualMineDescription}
         </span>
-        <span className="detonated-legend" data-tooltip="ゲームオーバーの原因になった地雷は黄色い二重輪で表示されます">
+        <span className="detonated-legend" data-tooltip={copy.detonatedTooltip}>
           <Bomb aria-hidden="true" />
-          <strong>黄色い輪</strong> 踏んだ地雷
+          <strong>{copy.detonated}</strong> {copy.detonatedDescription}
         </span>
       </div>
 
-      <div className="minefield-scroll" tabIndex={0} aria-label="スクロール可能な地雷原">
+      <div className="minefield-scroll" tabIndex={0} aria-label={copy.scrollBoard}>
         <div aria-live="polite" className="sr-only">
           {cascade
-            ? `${cascade.openedCells}マスを開いて${cascade.points}点獲得しました。倍率は${cascade.intensity}です。`
+            ? copy.openedCells(cascade.openedCells, cascade.points, cascade.intensity)
             : ''}
         </div>
         <div
@@ -570,7 +672,7 @@ export function MinesweeperGame() {
         >
           {board.cells.map((cell, index) => (
             <button
-              aria-label={describeCell(board, index)}
+              aria-label={describeCell(board, index, preferences.language)}
               className={`mine-cell ${cell.state} adjacent-${cell.adjacent} ${cell.state === 'open' && cell.mine ? 'actual-mine' : ''} ${board.detonatedIndex === index ? 'detonated' : ''}`}
               data-tooltip-disabled="true"
               key={index}
@@ -610,7 +712,7 @@ export function MinesweeperGame() {
             data-points={cascade.points}
             key={cascade.id}
           >
-            <strong>+{cascade.points.toLocaleString()}</strong>
+            <strong>+{cascade.points.toLocaleString(locale)}</strong>
             <span>{cascade.openedCells} CELLS / ×{cascade.intensity}</span>
             <div aria-hidden="true">
               {Array.from({ length: cascade.intensity * 6 }, (_, index) => (
@@ -623,13 +725,13 @@ export function MinesweeperGame() {
 
       <div className={`game-message mine-message ${board.status === 'won' ? 'success' : board.status === 'lost' ? 'danger' : ''}`} aria-live="polite">
         {board.status === 'won' ? (
-          <><strong>CLEARED!</strong><span>すべての安全なマスを開きました。</span></>
+          <><strong>CLEARED!</strong><span>{copy.cleared}</span></>
         ) : board.status === 'lost' ? (
-          <><strong>GAME OVER</strong><span>地雷を開きました。新しい盤面でもう一度。</span></>
+          <><strong>GAME OVER</strong><span>{copy.gameOver}</span></>
         ) : board.status === 'ready' ? (
-          <><strong>READY</strong><span>{board.generationMode === 'guess-free' ? '最初の一手から、推測せずに完走できる盤面を生成します。' : '最初に開くマスと、その周囲には地雷がありません。'}</span></>
+          <><strong>READY</strong><span>{board.generationMode === 'guess-free' ? copy.readyGuessFree : copy.readyClassic}</span></>
         ) : (
-          <><strong>PLAYING</strong><span>右クリックまたは長押しで、旗 → ? → 解除。数字を再度押すと周囲を開きます。</span></>
+          <><strong>PLAYING</strong><span>{copy.playing}</span></>
         )}
       </div>
       {(board.status === 'won' || board.status === 'lost') && !resultOpen ? (
@@ -640,10 +742,10 @@ export function MinesweeperGame() {
         onClose={() => setResultOpen(false)}
         onPrimary={() => startNewGame(session.difficulty)}
         open={resultOpen}
-        primaryLabel={board.status === 'lost' ? 'もう一度' : '次の盤面'}
+        primaryLabel={board.status === 'lost' ? copy.retry : copy.nextBoard}
         shareAction={(
           <GameShareButton
-            buttonLabel="同じ盤面を共有"
+            buttonLabel={copy.shareBoard}
             className="result-share-button"
             difficulty={session.difficulty}
             extraParameters={{
@@ -652,11 +754,11 @@ export function MinesweeperGame() {
             }}
             game="minesweeper"
             seed={board.seed}
-            title="ちきちきまいんすいーぱ。"
+            title={copy.title}
           />
         )}
         stats={[
-          { label: 'SCORE', value: session.score.toLocaleString() },
+          { label: 'SCORE', value: session.score.toLocaleString(locale) },
           { label: 'TIME', value: formatElapsedTime(session.elapsedSeconds) },
           { label: 'MAX CASCADE', value: String(session.largestCascade) },
           {
@@ -669,14 +771,14 @@ export function MinesweeperGame() {
         ]}
         subtitle={
           board.status === 'lost'
-            ? '地雷を開きました。スコアは次の挑戦へ持ち越されません。'
-            : 'すべての安全なマスを開きました。'
+            ? copy.lostSubtitle
+            : copy.victorySubtitle
         }
-        title={board.status === 'lost' ? 'GAME OVER' : '地雷原を制覇'}
+        title={board.status === 'lost' ? 'GAME OVER' : copy.victoryTitle}
       />
       <ConfirmationModal
-        confirmLabel={`${pendingDifficulty ? CONFIGURATIONS[pendingDifficulty].label : ''}で開始`}
-        message="現在の盤面とスコアは終了し、新しい地雷原を生成します。この操作は元に戻せません。"
+        confirmLabel={copy.begin(pendingDifficulty ? copy.difficulties[pendingDifficulty] : '')}
+        message={copy.confirmMessage}
         onCancel={() => setPendingDifficulty(null)}
         onConfirm={() => {
           if (pendingDifficulty) {
@@ -685,7 +787,7 @@ export function MinesweeperGame() {
           setPendingDifficulty(null)
         }}
         open={pendingDifficulty !== null}
-        title="難易度を変更しますか？"
+        title={copy.confirmTitle}
       />
     </section>
   )

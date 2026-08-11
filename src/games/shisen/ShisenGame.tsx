@@ -9,6 +9,8 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
+import { GameHowTo } from '../../components/20260812_GameHowTo'
+import { getLocalizedCopy } from '../../i18n/20260812_i18n'
 import {
   ConfirmationModal,
   CountdownOverlay,
@@ -39,11 +41,80 @@ interface ShisenSession {
   removedPairs: number
   shuffleCount: number
 }
-const DIFFICULTY_LABELS: Record<ShisenDifficulty, string> = {
-  relaxed: 'ゆったり',
-  standard: '標準',
-  expert: '達人',
-}
+const SHISEN_COPY = {
+  ja: {
+    begin: (difficulty: string) => `${difficulty}で開始`,
+    confirmMessage: '現在の配牌と進行状況は終了し、新しい配牌を生成します。この操作は元に戻せません。',
+    confirmTitle: '難易度を変更しますか？',
+    difficulties: { relaxed: 'ゆったり', standard: '標準', expert: '達人' },
+    difficulty: '難易度',
+    hint: 'ヒント',
+    hintMessage: '光っている2枚を消せます。',
+    hintTooltip: '現在消せる牌を2枚光らせる',
+    initialBoard: '初期盤面を閲覧中',
+    initialBoardDescription: 'ゲーム開始時の牌配置です。',
+    initialBoardTooltip: 'ゲーム開始時の牌配置を閲覧する',
+    missMessage: 'その2枚は結べません。次の牌を選びました。',
+    newBoard: '新しい配牌',
+    nextBoard: '次の配牌',
+    playingMessage: '盤外を通る経路も使えます。',
+    restoreCleared: 'クリア後の盤面へ戻る',
+    restoreClearedLabel: 'クリア後の空盤面を表示',
+    restoreClearedTooltip: 'すべて消したクリア後の盤面へ戻る',
+    reshuffledMessage: '残りの牌を解ける配置へ並べ替えました。',
+    scrollBoard: 'スクロール可能な四川省盤面',
+    shareBoard: '同じ配牌を共有',
+    showInitialLabel: '最初の盤面を表示',
+    shuffle: '残りの牌を並べ替える',
+    shuffleTooltip: '残りを必ず解ける配置へ並べ替える',
+    shrink: '牌を縮小',
+    shrinkTooltip: '盤面と牌の模様を同じ比率で縮小する',
+    subtitle: '同じ牌をすべて結び切りました。',
+    title: '四川省',
+    titleClear: '四川省クリア',
+    undo: '元に戻す',
+    undoTooltip: '直前に消した牌を戻す',
+    victoryMessage: 'すべての牌を取り切りました。',
+    zoom: '牌を拡大',
+    zoomTooltip: '盤面と牌の模様を同じ比率で拡大する',
+  },
+  en: {
+    begin: (difficulty: string) => `Start ${difficulty}`,
+    confirmMessage: 'Your current layout and progress will end and a new layout will be generated. This cannot be undone.',
+    confirmTitle: 'Change difficulty?',
+    difficulties: { relaxed: 'Relaxed', standard: 'Standard', expert: 'Expert' },
+    difficulty: 'Difficulty',
+    hint: 'Hint',
+    hintMessage: 'The two glowing tiles can be removed.',
+    hintTooltip: 'Highlight a pair that can be removed now',
+    initialBoard: 'Viewing the initial layout',
+    initialBoardDescription: 'This is the tile layout from the start of the game.',
+    initialBoardTooltip: 'View the tile layout from the start of the game',
+    missMessage: 'Those two tiles cannot be connected. Select another tile.',
+    newBoard: 'New layout',
+    nextBoard: 'Next layout',
+    playingMessage: 'Paths may also travel around the outside of the board.',
+    restoreCleared: 'Return to the cleared board',
+    restoreClearedLabel: 'Show the cleared board',
+    restoreClearedTooltip: 'Return to the empty board after all tiles were removed',
+    reshuffledMessage: 'The remaining tiles were rearranged into a solvable layout.',
+    scrollBoard: 'Scrollable Shisen-Sho board',
+    shareBoard: 'Share this layout',
+    showInitialLabel: 'Show the initial layout',
+    shuffle: 'Reshuffle remaining tiles',
+    shuffleTooltip: 'Rearrange the remaining tiles into a solvable layout',
+    shrink: 'Make tiles smaller',
+    shrinkTooltip: 'Shrink the board and tile symbols together',
+    subtitle: 'You connected and removed every matching tile.',
+    title: 'Shisen-Sho',
+    titleClear: 'Shisen-Sho cleared',
+    undo: 'Undo',
+    undoTooltip: 'Restore the last pair of removed tiles',
+    victoryMessage: 'You removed every tile.',
+    zoom: 'Make tiles larger',
+    zoomTooltip: 'Enlarge the board and tile symbols together',
+  },
+} as const
 
 const BOARD_WIDTHS: Record<ShisenDifficulty, number> = {
   relaxed: 860,
@@ -58,12 +129,20 @@ const TILE_GLYPHS = [
   '🀀', '🀁', '🀂', '🀃', '🀄', '🀅', '🀆',
 ]
 
-const TILE_LABELS = [
-  '一萬', '二萬', '三萬', '四萬', '五萬', '六萬', '七萬', '八萬', '九萬',
-  '一索', '二索', '三索', '四索', '五索', '六索', '七索', '八索', '九索',
-  '一筒', '二筒', '三筒', '四筒', '五筒', '六筒', '七筒', '八筒', '九筒',
-  '東', '南', '西', '北', '中', '發', '白',
-]
+const TILE_LABELS = {
+  ja: [
+    '一萬', '二萬', '三萬', '四萬', '五萬', '六萬', '七萬', '八萬', '九萬',
+    '一索', '二索', '三索', '四索', '五索', '六索', '七索', '八索', '九索',
+    '一筒', '二筒', '三筒', '四筒', '五筒', '六筒', '七筒', '八筒', '九筒',
+    '東', '南', '西', '北', '中', '發', '白',
+  ],
+  en: [
+    'one character', 'two characters', 'three characters', 'four characters', 'five characters', 'six characters', 'seven characters', 'eight characters', 'nine characters',
+    'one bamboo', 'two bamboo', 'three bamboo', 'four bamboo', 'five bamboo', 'six bamboo', 'seven bamboo', 'eight bamboo', 'nine bamboo',
+    'one dot', 'two dots', 'three dots', 'four dots', 'five dots', 'six dots', 'seven dots', 'eight dots', 'nine dots',
+    'East wind', 'South wind', 'West wind', 'North wind', 'red dragon', 'green dragon', 'white dragon',
+  ],
+} as const
 
 function isShisenDifficulty(value: string | null): value is ShisenDifficulty {
   return value === 'relaxed' || value === 'standard' || value === 'expert'
@@ -120,7 +199,8 @@ export function ShisenGame() {
   const [zoom, setZoom] = useState(1)
   const pathTimer = useRef<number | null>(null)
   const missTimer = useRef<number | null>(null)
-  const { playEffect } = useAppExperience()
+  const { playEffect, preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, SHISEN_COPY)
   const { countdown, isCountingDown, restartCountdown } = useGameCountdown(
     session.elapsedSeconds === 0 && session.board.status === 'playing',
   )
@@ -299,9 +379,9 @@ export function ShisenGame() {
       <header className="game-heading">
         <div>
           <p className="eyebrow">2009 / FOR YUKA</p>
-          <h1 id="shisen-title">四川省</h1>
+          <h1 id="shisen-title">{copy.title}</h1>
         </div>
-        <div className="game-metrics" aria-label="ゲーム情報">
+        <div className="game-metrics" aria-label={preferences.language === 'ja' ? 'ゲーム情報' : 'Game information'}>
           <span><strong>{formatElapsedTime(session.elapsedSeconds)}</strong> TIME</span>
           <span><strong>{remaining}</strong> LEFT</span>
           <span><strong>{session.removedPairs}</strong> PAIR</span>
@@ -311,8 +391,8 @@ export function ShisenGame() {
       </header>
 
       <div className="difficulty-row shisen-controls">
-        <div className="segmented-control" aria-label="難易度">
-          {(Object.keys(DIFFICULTY_LABELS) as ShisenDifficulty[]).map(
+        <div className="segmented-control" aria-label={copy.difficulty}>
+          {(Object.keys(copy.difficulties) as ShisenDifficulty[]).map(
             (difficulty) => (
               <button
                 aria-pressed={board.difficulty === difficulty}
@@ -321,7 +401,7 @@ export function ShisenGame() {
                 onClick={() => requestDifficultyChange(difficulty)}
                 type="button"
               >
-                {DIFFICULTY_LABELS[difficulty]}
+                {copy.difficulties[difficulty]}
               </button>
             ),
           )}
@@ -331,11 +411,11 @@ export function ShisenGame() {
             difficulty={board.difficulty}
             game="shisen"
             seed={board.seed}
-            title="四川省"
+            title={copy.title}
           />
           <button
-            aria-label="牌を縮小"
-            data-tooltip="盤面と牌の模様を同じ比率で縮小する"
+            aria-label={copy.shrink}
+            data-tooltip={copy.shrinkTooltip}
             disabled={zoom <= 0.7}
             onClick={() => setZoom((current) => Math.max(0.7, current - 0.1))}
             type="button"
@@ -343,8 +423,8 @@ export function ShisenGame() {
             <ZoomOut aria-hidden="true" />
           </button>
           <button
-            aria-label="牌を拡大"
-            data-tooltip="盤面と牌の模様を同じ比率で拡大する"
+            aria-label={copy.zoom}
+            data-tooltip={copy.zoomTooltip}
             disabled={zoom >= 1.4}
             onClick={() => setZoom((current) => Math.min(1.4, current + 0.1))}
             type="button"
@@ -353,11 +433,11 @@ export function ShisenGame() {
           </button>
           {board.status === 'won' ? (
             <button
-              aria-label={showInitialBoard ? 'クリア後の空盤面を表示' : '最初の盤面を表示'}
+              aria-label={showInitialBoard ? copy.restoreClearedLabel : copy.showInitialLabel}
               data-tooltip={
                 showInitialBoard
-                  ? 'すべて消したクリア後の盤面へ戻る'
-                  : 'ゲーム開始時の牌配置を閲覧する'
+                  ? copy.restoreClearedTooltip
+                  : copy.initialBoardTooltip
               }
               onClick={() => setShowInitialBoard((current) => !current)}
               type="button"
@@ -366,8 +446,8 @@ export function ShisenGame() {
             </button>
           ) : null}
           <button
-            aria-label="元に戻す"
-            data-tooltip="直前に消した牌を戻す"
+            aria-label={copy.undo}
+            data-tooltip={copy.undoTooltip}
             disabled={history.length === 0 || showInitialBoard}
             onClick={undo}
             type="button"
@@ -375,8 +455,8 @@ export function ShisenGame() {
             <RotateCcw aria-hidden="true" />
           </button>
           <button
-            aria-label="ヒント"
-            data-tooltip="現在消せる牌を2枚光らせる"
+            aria-label={copy.hint}
+            data-tooltip={copy.hintTooltip}
             disabled={showInitialBoard}
             onClick={showHint}
             type="button"
@@ -384,8 +464,8 @@ export function ShisenGame() {
             <Lightbulb aria-hidden="true" />
           </button>
           <button
-            aria-label="残りの牌を並べ替える"
-            data-tooltip="残りを必ず解ける配置へ並べ替える"
+            aria-label={copy.shuffle}
+            data-tooltip={copy.shuffleTooltip}
             disabled={showInitialBoard}
             onClick={shuffleRemaining}
             type="button"
@@ -393,22 +473,24 @@ export function ShisenGame() {
             <Shuffle aria-hidden="true" />
           </button>
           <button className="command-button" onClick={() => startNewGame()} type="button">
-            <RefreshCw aria-hidden="true" size={17} /> 新しい配牌
+            <RefreshCw aria-hidden="true" size={17} /> {copy.newBoard}
           </button>
         </div>
       </div>
 
+      <GameHowTo game="shisen" />
+
       {showInitialBoard ? (
         <div className="initial-board-banner" role="status">
           <Eye aria-hidden="true" />
-          <span><strong>初期盤面を閲覧中</strong> ゲーム開始時の牌配置です。</span>
+          <span><strong>{copy.initialBoard}</strong> {copy.initialBoardDescription}</span>
           <button onClick={() => setShowInitialBoard(false)} type="button">
-            クリア後の盤面へ戻る
+            {copy.restoreCleared}
           </button>
         </div>
       ) : null}
 
-      <div className="shisen-scroll" tabIndex={0} aria-label="スクロール可能な四川省盤面">
+      <div className="shisen-scroll" tabIndex={0} aria-label={copy.scrollBoard}>
         <div className={`shisen-shell ${missedTiles.length > 0 ? 'miss-reaction' : ''}`} style={shellStyle}>
           <div className="shisen-mat" aria-hidden="true" />
           {displayBoard.tiles.map((tile, index) => {
@@ -427,7 +509,9 @@ export function ShisenGame() {
             const isMissed = missedTiles.includes(index)
             return (
               <button
-                aria-label={`${TILE_LABELS[tile]} 行${row + 1} 列${column + 1}`}
+                aria-label={preferences.language === 'ja'
+                  ? `${TILE_LABELS.ja[tile]} 行${row + 1} 列${column + 1}`
+                  : `${TILE_LABELS.en[tile]}, row ${row + 1}, column ${column + 1}`}
                 aria-pressed={selected === index}
                 className={`shisen-tile family-${Math.floor(tile / 9)} ${selected === index ? 'selected' : ''} ${isHint ? 'hint' : ''} ${isMissed ? 'missed' : ''}`}
                 data-shisen-index={index}
@@ -459,15 +543,15 @@ export function ShisenGame() {
 
       <div className={`game-message shisen-message ${board.status === 'won' ? 'success' : notice === 'miss' ? 'warning' : ''}`} aria-live="polite">
         {board.status === 'won' ? (
-          <><strong>CLEAR!</strong><span>すべての牌を取り切りました。</span></>
+          <><strong>CLEAR!</strong><span>{copy.victoryMessage}</span></>
         ) : notice === 'miss' ? (
-          <><strong>NO LINE</strong><span>その2枚は結べません。次の牌を選びました。</span></>
+          <><strong>NO LINE</strong><span>{copy.missMessage}</span></>
         ) : notice === 'hint' ? (
-          <><strong>HINT</strong><span>光っている2枚を消せます。</span></>
+          <><strong>HINT</strong><span>{copy.hintMessage}</span></>
         ) : session.shuffleCount > 0 ? (
-          <><strong>RESHUFFLED</strong><span>残りの牌を解ける配置へ並べ替えました。</span></>
+          <><strong>RESHUFFLED</strong><span>{copy.reshuffledMessage}</span></>
         ) : (
-          <><strong>PLAYING</strong><span>盤外を通る経路も使えます。</span></>
+          <><strong>PLAYING</strong><span>{copy.playingMessage}</span></>
         )}
       </div>
       {board.status === 'won' && !resultOpen ? (
@@ -481,30 +565,30 @@ export function ShisenGame() {
         }}
         onPrimary={() => startNewGame(board.difficulty)}
         open={resultOpen}
-        primaryLabel="次の配牌"
+        primaryLabel={copy.nextBoard}
         shareAction={(
           <GameShareButton
-            buttonLabel="同じ配牌を共有"
+            buttonLabel={copy.shareBoard}
             className="result-share-button"
             difficulty={board.difficulty}
             game="shisen"
             seed={board.seed}
-            title="四川省"
+            title={copy.title}
           />
         )}
         stats={[
           { label: 'TIME', value: formatElapsedTime(session.elapsedSeconds) },
-          { label: 'DIFFICULTY', value: DIFFICULTY_LABELS[board.difficulty] },
+          { label: 'DIFFICULTY', value: copy.difficulties[board.difficulty] },
           { label: 'PAIRS', value: String(session.removedPairs) },
           { label: 'RATING', value: String(session.initialRating) },
           { label: 'SHUFFLE', value: String(session.shuffleCount) },
         ]}
-        subtitle="同じ牌をすべて結び切りました。"
-        title="四川省クリア"
+        subtitle={copy.subtitle}
+        title={copy.titleClear}
       />
       <ConfirmationModal
-        confirmLabel={`${pendingDifficulty ? DIFFICULTY_LABELS[pendingDifficulty] : ''}で開始`}
-        message="現在の配牌と進行状況は終了し、新しい配牌を生成します。この操作は元に戻せません。"
+        confirmLabel={copy.begin(pendingDifficulty ? copy.difficulties[pendingDifficulty] : '')}
+        message={copy.confirmMessage}
         onCancel={() => setPendingDifficulty(null)}
         onConfirm={() => {
           if (pendingDifficulty) {
@@ -513,7 +597,7 @@ export function ShisenGame() {
           setPendingDifficulty(null)
         }}
         open={pendingDifficulty !== null}
-        title="難易度を変更しますか？"
+        title={copy.confirmTitle}
       />
     </section>
   )

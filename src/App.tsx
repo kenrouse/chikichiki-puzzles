@@ -6,6 +6,7 @@ import {
   Download,
   Focus,
   Grid3X3,
+  Languages,
   LayoutGrid,
   Maximize2,
   Minimize2,
@@ -24,6 +25,7 @@ import { ShisenGame } from './games/shisen/ShisenGame'
 import { SudokuGame } from './games/sudoku/SudokuGame'
 import { GuidePage } from './pages/20260811_GuidePage'
 import { TitlePage, type TitleGameId } from './pages/20260811_TitlePage'
+import { getLocalizedCopy } from './i18n/20260812_i18n'
 import './App.css'
 
 type GameId = 'sudoku' | 'minesweeper' | 'shisen'
@@ -35,10 +37,57 @@ interface InstallPromptEvent extends Event {
 }
 
 const GAMES = [
-  { id: 'sudoku' as const, label: '数独', years: '2006 / 2011', icon: Grid3X3 },
-  { id: 'minesweeper' as const, label: 'マインスイーパ', years: '2007', icon: Bomb },
-  { id: 'shisen' as const, label: '四川省', years: '2009', icon: LayoutGrid },
+  { id: 'sudoku' as const, years: '2006 / 2011', icon: Grid3X3 },
+  { id: 'minesweeper' as const, years: '2007', icon: Bomb },
+  { id: 'shisen' as const, years: '2009', icon: LayoutGrid },
 ]
+
+const APP_COPY = {
+  ja: {
+    closeNotification: '通知を閉じる',
+    enterFocus: '集中モードを開始',
+    exitFocus: '集中モードを終了',
+    exitFocusTooltip: '通常の画面表示へ戻る',
+    exitFullscreen: '全画面表示を終了',
+    footerGuide: 'ゲーム制作ノート',
+    gameLabels: { minesweeper: 'マインスイーパ', shisen: '四川省', sudoku: '数独' },
+    gameNavigation: 'ゲーム選択',
+    github: 'GitHubでソースコードを開く',
+    guide: 'ゲーム制作ノート',
+    guideTooltip: '生成アルゴリズムと難易度設計',
+    install: 'アプリをインストール',
+    offlineReady: 'オフライン準備完了',
+    offlineReadyMessage: '次回から通信なしでも遊べます。',
+    openFullscreen: 'ブラウザー全画面で表示',
+    startFocusTooltip: '周辺UIを隠して盤面を広く表示',
+    switchLanguage: 'Switch to English',
+    update: 'アプリを更新',
+    updateAvailable: '更新があります',
+    updateMessage: '新しい版へ切り替えられます。',
+  },
+  en: {
+    closeNotification: 'Close notification',
+    enterFocus: 'Enter focus mode',
+    exitFocus: 'Exit focus mode',
+    exitFocusTooltip: 'Return to the standard layout',
+    exitFullscreen: 'Exit fullscreen',
+    footerGuide: 'Game design notes',
+    gameLabels: { minesweeper: 'Minesweeper', shisen: 'Shisen-Sho', sudoku: 'Sudoku' },
+    gameNavigation: 'Choose a game',
+    github: 'Open source code on GitHub',
+    guide: 'Game design notes',
+    guideTooltip: 'Generation algorithms and difficulty design',
+    install: 'Install app',
+    offlineReady: 'Ready offline',
+    offlineReadyMessage: 'You can play without a connection next time.',
+    openFullscreen: 'Open browser fullscreen',
+    startFocusTooltip: 'Hide surrounding UI and enlarge the board',
+    switchLanguage: '日本語に切り替え',
+    update: 'Update app',
+    updateAvailable: 'Update available',
+    updateMessage: 'A new version is ready.',
+  },
+} as const
 
 function readViewFromHash(hash: string): ViewId {
   const candidate = hash.replace(/^#\/?/, '').split('?', 1)[0]
@@ -54,6 +103,8 @@ function readViewFromHash(hash: string): ViewId {
 }
 
 function PwaStatus() {
+  const { preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, APP_COPY)
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     offlineReady: [offlineReady, setOfflineReady],
@@ -67,16 +118,16 @@ function PwaStatus() {
   return (
     <div className="pwa-toast" role="status">
       <div>
-        <strong>{needRefresh ? '更新があります' : 'オフライン準備完了'}</strong>
+        <strong>{needRefresh ? copy.updateAvailable : copy.offlineReady}</strong>
         <span>
           {needRefresh
-            ? '新しい版へ切り替えられます。'
-            : '次回から通信なしでも遊べます。'}
+            ? copy.updateMessage
+            : copy.offlineReadyMessage}
         </span>
       </div>
       {needRefresh ? (
         <button
-          aria-label="アプリを更新"
+          aria-label={copy.update}
           onClick={() => updateServiceWorker(true)}
           type="button"
         >
@@ -84,7 +135,7 @@ function PwaStatus() {
         </button>
       ) : null}
       <button
-        aria-label="通知を閉じる"
+        aria-label={copy.closeNotification}
         onClick={() => {
           setNeedRefresh(false)
           setOfflineReady(false)
@@ -107,7 +158,8 @@ function App() {
   const [fullscreenActive, setFullscreenActive] = useState(
     Boolean(document.fullscreenElement),
   )
-  const { playEffect } = useAppExperience()
+  const { playEffect, preferences, setLanguage } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, APP_COPY)
   const gameActive = GAMES.some((game) => game.id === activeView)
   const focusActive = focusMode && gameActive
   const fullscreenSupported =
@@ -125,6 +177,12 @@ function App() {
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
+
+  useEffect(() => {
+    document.title = preferences.language === 'ja'
+      ? 'ちきちきパズルズ'
+      : 'Chikichiki Puzzles'
+  }, [preferences.language])
 
   useEffect(() => {
     const handleFullscreenChange = () =>
@@ -199,10 +257,10 @@ function App() {
     <div className={`app-shell ${focusActive ? 'focus-mode' : ''}`}>
       <InteractionEffects />
       {focusActive ? (
-        <div aria-label="集中モード" className="focus-mode-controls" role="toolbar">
+        <div aria-label={copy.enterFocus} className="focus-mode-controls" role="toolbar">
           <button
-            aria-label="集中モードを終了"
-            data-tooltip="通常の画面表示へ戻る"
+            aria-label={copy.exitFocus}
+            data-tooltip={copy.exitFocusTooltip}
             onClick={() => void leaveFocusMode()}
             type="button"
           >
@@ -210,8 +268,8 @@ function App() {
           </button>
           {fullscreenSupported ? (
             <button
-              aria-label={fullscreenActive ? '全画面表示を終了' : 'ブラウザー全画面で表示'}
-              data-tooltip={fullscreenActive ? '全画面表示を終了' : 'ブラウザー全画面で表示'}
+              aria-label={fullscreenActive ? copy.exitFullscreen : copy.openFullscreen}
+              data-tooltip={fullscreenActive ? copy.exitFullscreen : copy.openFullscreen}
               onClick={() => void toggleFullscreen()}
               type="button"
             >
@@ -236,7 +294,7 @@ function App() {
           </span>
         </a>
 
-        <nav aria-label="ゲーム選択" className="game-tabs" role="tablist">
+        <nav aria-label={copy.gameNavigation} className="game-tabs" role="tablist">
           {GAMES.map((game) => {
             const Icon = game.icon
             return (
@@ -249,7 +307,7 @@ function App() {
                 type="button"
               >
                 <Icon aria-hidden="true" />
-                <span>{game.label}<small>{game.years}</small></span>
+                <span>{copy.gameLabels[game.id]}<small>{game.years}</small></span>
               </button>
             )
           })}
@@ -258,8 +316,8 @@ function App() {
         <div className="app-utilities">
           {gameActive ? (
             <button
-              aria-label="集中モードを開始"
-              data-tooltip="周辺UIを隠して盤面を広く表示"
+              aria-label={copy.enterFocus}
+              data-tooltip={copy.startFocusTooltip}
               onClick={enterFocusMode}
               type="button"
             >
@@ -268,7 +326,7 @@ function App() {
           ) : null}
           {installPrompt ? (
             <button
-              aria-label="アプリをインストール"
+              aria-label={copy.install}
               onClick={installApp}
               type="button"
             >
@@ -276,9 +334,19 @@ function App() {
             </button>
           ) : null}
           <button
-            aria-label="ゲーム制作ノート"
+            aria-label={copy.switchLanguage}
+            className="language-switch-button"
+            data-tooltip={copy.switchLanguage}
+            onClick={() => setLanguage(preferences.language === 'ja' ? 'en' : 'ja')}
+            type="button"
+          >
+            <Languages aria-hidden="true" />
+            <span>{preferences.language.toUpperCase()}</span>
+          </button>
+          <button
+            aria-label={copy.guide}
             className={activeView === 'guide' ? 'active' : ''}
-            data-tooltip="生成アルゴリズムと難易度設計"
+            data-tooltip={copy.guideTooltip}
             onClick={() => selectView('guide')}
             type="button"
           >
@@ -286,7 +354,7 @@ function App() {
           </button>
           <SettingsButton onClick={() => setSettingsOpen(true)} />
           <a
-            aria-label="GitHubでソースコードを開く"
+            aria-label={copy.github}
             href="https://github.com/kenrouse/chikichiki-puzzles"
             rel="noreferrer"
             target="_blank"
@@ -308,7 +376,7 @@ function App() {
 
       <footer className="app-footer">
         <span>ORIGINAL i-APPLI: 2006–2009</span>
-        <button onClick={() => selectView('guide')} type="button">ゲーム制作ノート</button>
+        <button onClick={() => selectView('guide')} type="button">{copy.footerGuide}</button>
         <span>OFFLINE READY / NO TRACKING / LOCAL SAVE</span>
       </footer>
       <SettingsPanel onClose={() => setSettingsOpen(false)} open={settingsOpen} />

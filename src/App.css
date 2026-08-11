@@ -51,6 +51,8 @@
 .focus-mode .app-footer,
 .focus-mode .game-heading,
 .focus-mode .difficulty-row > .segmented-control,
+.focus-mode .game-how-to,
+.focus-mode .game-how-to-restore,
 .focus-mode .mine-mode-row,
 .focus-mode .mine-legend,
 .focus-mode .game-message,
@@ -254,6 +256,18 @@
 .tool-row svg {
   width: 20px;
   height: 20px;
+}
+
+.app-utilities .language-switch-button {
+  display: inline-flex;
+  width: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.language-switch-button span {
+  font: 700 8px/1 var(--font-display);
 }
 
 main {
@@ -515,6 +529,144 @@ main {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.game-how-to {
+  margin: -6px 0 24px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--mint) 12%, transparent);
+}
+
+.game-how-to > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.game-how-to-title,
+.game-how-to-actions,
+.game-how-to-restore,
+.game-how-to-restore button {
+  display: flex;
+  align-items: center;
+}
+
+.game-how-to-title {
+  gap: 9px;
+}
+
+.game-how-to-title svg {
+  width: 19px;
+  height: 19px;
+  color: var(--coral);
+}
+
+.game-how-to h2,
+.game-how-to h3,
+.game-how-to p {
+  margin: 0;
+}
+
+.game-how-to h2 {
+  font: 700 14px/1.2 var(--font-display);
+}
+
+.game-how-to > p {
+  max-width: 920px;
+  margin-top: 11px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.game-how-to-actions {
+  gap: 4px;
+}
+
+.game-how-to-actions button,
+.game-how-to-restore button {
+  min-height: 34px;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--paper-strong);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.game-how-to-actions button:last-child {
+  width: 34px;
+  justify-content: center;
+  padding: 6px;
+}
+
+.game-how-to-actions svg,
+.game-how-to-restore svg {
+  width: 15px;
+  height: 15px;
+}
+
+.game-how-to-tips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 20px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.game-how-to-tips li {
+  position: relative;
+  padding-left: 16px;
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.game-how-to-tips li::before {
+  position: absolute;
+  top: 0.55em;
+  left: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sun);
+  content: '';
+}
+
+.game-how-to-details {
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.game-how-to-details h3 {
+  font: 700 11px/1.2 var(--font-display);
+}
+
+.game-how-to-details ol {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+
+.game-how-to-details li {
+  padding-left: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.game-how-to-restore {
+  justify-content: flex-end;
+  margin: -6px 0 16px;
 }
 
 .segmented-control {
@@ -2672,6 +2824,7 @@ button:active,
   .algorithm-flow { align-items: stretch; flex-direction: column; }
   .algorithm-flow i { text-align: center; transform: rotate(90deg); }
   .practice-grid { grid-template-columns: 1fr; }
+  .game-how-to-tips { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 520px) {
@@ -2686,6 +2839,8 @@ button:active,
   .countdown-overlay span { font-size: 94px; }
   .tool-row { grid-template-columns: repeat(5, 1fr); }
   .guide-hero h1 { font-size: 40px; }
+  .game-how-to > header { align-items: flex-start; flex-wrap: wrap; }
+  .game-how-to-actions { width: 100%; justify-content: flex-end; }
   .sudoku-difficulty-table > div { grid-template-columns: 64px 72px minmax(0, 1fr); }
   .sudoku-difficulty-table span,
   .sudoku-difficulty-table strong { padding: 8px 6px; font-size: 10px; }
