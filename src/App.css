@@ -4,6 +4,91 @@
   flex-direction: column;
 }
 
+.focus-mode-controls {
+  position: fixed;
+  z-index: 1400;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--paper-strong) 94%, transparent);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.focus-mode-controls button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.focus-mode-controls button:hover {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--mint) 28%, var(--paper-strong));
+  transform: translateY(-2px);
+}
+
+.focus-mode-controls svg {
+  width: 19px;
+  height: 19px;
+}
+
+.app-shell.focus-mode {
+  min-height: 100svh;
+}
+
+.focus-mode .app-header,
+.focus-mode .app-footer,
+.focus-mode .game-heading,
+.focus-mode .difficulty-row > .segmented-control,
+.focus-mode .mine-mode-row,
+.focus-mode .mine-legend,
+.focus-mode .game-message,
+.focus-mode .initial-board-banner {
+  display: none;
+}
+
+.focus-mode main {
+  width: 100%;
+  max-width: none;
+  padding: 8px;
+}
+
+.focus-mode .game-workspace {
+  min-height: calc(100svh - 16px);
+}
+
+.focus-mode .difficulty-row {
+  min-height: 52px;
+  justify-content: flex-end;
+  padding: 0 96px 8px 0;
+}
+
+.focus-mode .minefield-scroll,
+.focus-mode .shisen-scroll {
+  max-height: calc(100svh - 68px);
+  margin: 0;
+  padding: 8px;
+}
+
+.focus-mode .sudoku-layout {
+  gap: 18px;
+}
+
+.focus-mode .sudoku-board {
+  width: min(82svh, 680px, 100%);
+}
+
 .app-header {
   position: sticky;
   z-index: 50;
@@ -854,7 +939,7 @@ main {
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--forest) 8%, var(--paper-strong));
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
 }
 
 .minefield {
@@ -1012,7 +1097,7 @@ main {
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--forest) 10%, var(--paper-strong));
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
 }
 
 .shisen-shell {

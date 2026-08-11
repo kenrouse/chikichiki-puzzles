@@ -4,8 +4,11 @@ import {
   BookOpen,
   Code2,
   Download,
+  Focus,
   Grid3X3,
   LayoutGrid,
+  Maximize2,
+  Minimize2,
   RefreshCw,
   X,
 } from 'lucide-react'
@@ -100,12 +103,35 @@ function App() {
   const [installPrompt, setInstallPrompt] =
     useState<InstallPromptEvent | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [focusMode, setFocusMode] = useState(false)
+  const [fullscreenActive, setFullscreenActive] = useState(
+    Boolean(document.fullscreenElement),
+  )
   const { playEffect } = useAppExperience()
+  const gameActive = GAMES.some((game) => game.id === activeView)
+  const focusActive = focusMode && gameActive
+  const fullscreenSupported =
+    typeof document.documentElement.requestFullscreen === 'function' &&
+    typeof document.exitFullscreen === 'function'
 
   useEffect(() => {
-    const handleHashChange = () => setLocationHash(window.location.hash)
+    const handleHashChange = () => {
+      setLocationHash(window.location.hash)
+      setFocusMode(false)
+      if (document.fullscreenElement) {
+        void document.exitFullscreen()
+      }
+    }
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+  useEffect(() => {
+    const handleFullscreenChange = () =>
+      setFullscreenActive(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () =>
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
 
   useEffect(() => {
@@ -126,7 +152,38 @@ function App() {
       window.location.hash = nextHash
     }
     playEffect('select')
+    setFocusMode(false)
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function enterFocusMode(): void {
+    setFocusMode(true)
+    playEffect('select')
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0 }))
+  }
+
+  async function leaveFocusMode(): Promise<void> {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+    }
+    setFocusMode(false)
+    playEffect('select')
+  }
+
+  async function toggleFullscreen(): Promise<void> {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+      } else {
+        await document.documentElement.requestFullscreen()
+      }
+      setFullscreenActive(Boolean(document.fullscreenElement))
+    } catch {
+      playEffect('error')
+    }
   }
 
   async function installApp(): Promise<void> {
@@ -139,8 +196,30 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${focusActive ? 'focus-mode' : ''}`}>
       <InteractionEffects />
+      {focusActive ? (
+        <div aria-label="集中モード" className="focus-mode-controls" role="toolbar">
+          <button
+            aria-label="集中モードを終了"
+            data-tooltip="通常の画面表示へ戻る"
+            onClick={() => void leaveFocusMode()}
+            type="button"
+          >
+            <X aria-hidden="true" />
+          </button>
+          {fullscreenSupported ? (
+            <button
+              aria-label={fullscreenActive ? '全画面表示を終了' : 'ブラウザー全画面で表示'}
+              data-tooltip={fullscreenActive ? '全画面表示を終了' : 'ブラウザー全画面で表示'}
+              onClick={() => void toggleFullscreen()}
+              type="button"
+            >
+              {fullscreenActive ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <header className="app-header">
         <a
           className="brand"
@@ -177,6 +256,16 @@ function App() {
         </nav>
 
         <div className="app-utilities">
+          {gameActive ? (
+            <button
+              aria-label="集中モードを開始"
+              data-tooltip="周辺UIを隠して盤面を広く表示"
+              onClick={enterFocusMode}
+              type="button"
+            >
+              <Focus aria-hidden="true" />
+            </button>
+          ) : null}
           {installPrompt ? (
             <button
               aria-label="アプリをインストール"

@@ -105,6 +105,7 @@ export function GuidePage({ onBack }: { onBack: () => void }) {
             <section><strong>再現可能性</strong><span>seed と必要な初期条件を URL と QR コードに保存し、同じゲームを共有できます。</span></section>
             <section><strong>中断と復帰</strong><span>進行状況を端末内へ保存し、ページを閉じても続きから遊べるようにします。</span></section>
             <section><strong>入力の選択肢</strong><span>タッチ、マウス、キーボードを同じゲーム状態へ接続します。</span></section>
+            <section><strong>盤面への集中</strong><span>集中モードで周辺 UI を隠し、必要ならブラウザー全画面へ切り替えます。盤面内の端ではページスクロールへ引き継ぎます。</span></section>
             <section><strong>動きへの配慮</strong><span>OS の「視差効果を減らす」設定に合わせ、必須でないアニメーションを止めます。</span></section>
             <section><strong>ローカル優先</strong><span>アカウントや通信を必要とせず、記録をブラウザー内だけに保存します。</span></section>
           </div>
