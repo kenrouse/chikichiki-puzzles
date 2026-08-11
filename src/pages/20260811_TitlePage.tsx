@@ -5,7 +5,7 @@ export type TitleGameId = 'sudoku' | 'minesweeper' | 'shisen'
 
 const TITLE_GAMES = [
   {
-    description: '唯一解と複雑度を評価して生成する、4段階の数字パズル。',
+    description: '入門からエキスパートまで、一意解を保証して生成する5段階の数字パズル。',
     id: 'sudoku' as const,
     icon: Grid3X3,
     label: 'おーとまちっく数独',
