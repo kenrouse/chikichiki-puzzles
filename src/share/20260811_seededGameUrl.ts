@@ -4,6 +4,7 @@ export interface SharedGameParameters {
   difficulty: string | null
   firstMove: number | null
   game: ShareableGameId
+  guessFree: boolean | null
   seed: number
 }
 
@@ -32,10 +33,12 @@ export function parseSharedGameHash(hash: string): SharedGameParameters | null {
   if (!Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff) {
     return null
   }
+  const logic = parameters.get('logic')
   return {
     difficulty: parameters.get('difficulty'),
     firstMove: parseOptionalUint32(parameters.get('first')),
     game: path,
+    guessFree: logic === '1' ? true : logic === '0' ? false : null,
     seed: seed >>> 0,
   }
 }

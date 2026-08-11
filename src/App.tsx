@@ -20,10 +20,11 @@ import { MinesweeperGame } from './games/minesweeper/MinesweeperGame'
 import { ShisenGame } from './games/shisen/ShisenGame'
 import { SudokuGame } from './games/sudoku/SudokuGame'
 import { GuidePage } from './pages/20260811_GuidePage'
+import { TitlePage, type TitleGameId } from './pages/20260811_TitlePage'
 import './App.css'
 
 type GameId = 'sudoku' | 'minesweeper' | 'shisen'
-type ViewId = GameId | 'guide'
+type ViewId = GameId | 'guide' | 'home'
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -36,14 +37,17 @@ const GAMES = [
   { id: 'shisen' as const, label: '四川省', years: '2009', icon: LayoutGrid },
 ]
 
-function readViewFromHash(): ViewId {
-  const candidate = window.location.hash.replace(/^#\/?/, '').split('?', 1)[0]
+function readViewFromHash(hash: string): ViewId {
+  const candidate = hash.replace(/^#\/?/, '').split('?', 1)[0]
+  if (!candidate) {
+    return 'home'
+  }
   if (candidate === 'guide') {
     return 'guide'
   }
   return GAMES.some((game) => game.id === candidate)
     ? (candidate as GameId)
-    : 'sudoku'
+    : 'home'
 }
 
 function PwaStatus() {
@@ -93,14 +97,15 @@ function PwaStatus() {
 }
 
 function App() {
-  const [activeView, setActiveView] = useState<ViewId>(readViewFromHash)
+  const [locationHash, setLocationHash] = useState(window.location.hash)
+  const activeView = readViewFromHash(locationHash)
   const [installPrompt, setInstallPrompt] =
     useState<InstallPromptEvent | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { playEffect } = useAppExperience()
 
   useEffect(() => {
-    const handleHashChange = () => setActiveView(readViewFromHash())
+    const handleHashChange = () => setLocationHash(window.location.hash)
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
@@ -116,8 +121,12 @@ function App() {
   }, [])
 
   function selectView(view: ViewId): void {
-    window.location.hash = `/${view}`
-    setActiveView(view)
+    const nextHash = view === 'home' ? '#/' : `#/${view}`
+    if (window.location.hash === nextHash) {
+      setLocationHash(nextHash)
+    } else {
+      window.location.hash = nextHash
+    }
     playEffect('select')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -135,7 +144,14 @@ function App() {
     <div className="app-shell">
       <InteractionEffects />
       <header className="app-header">
-        <a className="brand" href="#/sudoku" onClick={() => selectView('sudoku')}>
+        <a
+          className="brand"
+          href="#/"
+          onClick={(event) => {
+            event.preventDefault()
+            selectView('home')
+          }}
+        >
           <img alt="" src={`${import.meta.env.BASE_URL}puzzle-mark.svg`} />
           <span>
             <strong>CHIKICHIKI</strong>
@@ -197,10 +213,13 @@ function App() {
       </header>
 
       <main>
-        {activeView === 'sudoku' ? <SudokuGame /> : null}
-        {activeView === 'minesweeper' ? <MinesweeperGame /> : null}
-        {activeView === 'shisen' ? <ShisenGame /> : null}
-        {activeView === 'guide' ? <GuidePage onBack={() => selectView('sudoku')} /> : null}
+        {activeView === 'home' ? (
+          <TitlePage onSelect={(game: TitleGameId) => selectView(game)} />
+        ) : null}
+        {activeView === 'sudoku' ? <SudokuGame key={locationHash} /> : null}
+        {activeView === 'minesweeper' ? <MinesweeperGame key={locationHash} /> : null}
+        {activeView === 'shisen' ? <ShisenGame key={locationHash} /> : null}
+        {activeView === 'guide' ? <GuidePage onBack={() => selectView('home')} /> : null}
       </main>
 
       <footer className="app-footer">

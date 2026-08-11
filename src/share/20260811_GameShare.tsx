@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, Copy, Share2, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAppExperience } from '../experience/20260811_AppExperience'
@@ -8,6 +9,8 @@ import {
 } from './20260811_seededGameUrl'
 
 interface GameShareButtonProps {
+  buttonLabel?: string
+  className?: string
   difficulty: string
   disabled?: boolean
   disabledReason?: string
@@ -33,6 +36,8 @@ async function copyText(value: string): Promise<void> {
 }
 
 export function GameShareButton({
+  buttonLabel,
+  className,
   difficulty,
   disabled = false,
   disabledReason = '現在のゲームはまだ共有できません',
@@ -95,6 +100,7 @@ export function GameShareButton({
     <>
       <button
         aria-label="このゲームを共有"
+        className={className}
         data-tooltip={
           disabled
             ? disabledReason
@@ -109,8 +115,9 @@ export function GameShareButton({
         type="button"
       >
         <Share2 aria-hidden="true" />
+        {buttonLabel ? <span>{buttonLabel}</span> : null}
       </button>
-      {open ? (
+      {open ? createPortal(
         <div className="share-backdrop" onMouseDown={() => setOpen(false)}>
           <section
             aria-labelledby="share-title"
@@ -162,7 +169,8 @@ export function GameShareButton({
               </div>
             </div>
           </section>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   )

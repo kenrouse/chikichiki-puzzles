@@ -5,8 +5,9 @@ import {
   type CSSProperties,
   type PointerEvent,
 } from 'react'
-import { Bomb, Flag, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react'
+import { Bomb, Flag, RefreshCw, ShieldCheck, ZoomIn, ZoomOut } from 'lucide-react'
 import {
+  ConfirmationModal,
   CountdownOverlay,
   ResultModal,
   useAppExperience,
@@ -24,6 +25,7 @@ import {
   toggleMineFlag,
   type MineBoard,
   type MineConfiguration,
+  type MineGenerationMode,
 } from './engine'
 
 type MineDifficulty = 'beginner' | 'intermediate' | 'expert'
@@ -64,9 +66,14 @@ function createSession(
   difficulty: MineDifficulty,
   seed = Date.now() >>> 0,
   firstMoveIndex: number | null = null,
+  generationMode: MineGenerationMode = 'guess-free',
 ): MineSession {
   const { width, height, mineCount } = CONFIGURATIONS[difficulty]
-  const initialBoard = createMineBoard({ width, height, mineCount }, seed)
+  const initialBoard = createMineBoard(
+    { width, height, mineCount },
+    seed,
+    generationMode,
+  )
   const validFirstMove =
     firstMoveIndex !== null &&
     firstMoveIndex >= 0 &&
@@ -93,7 +100,17 @@ function createInitialSession(): MineSession {
   const difficulty: MineDifficulty = isMineDifficulty(requestedDifficulty)
     ? requestedDifficulty
     : 'beginner'
-  return createSession(difficulty, shared?.seed, shared?.firstMove ?? null)
+  const generationMode: MineGenerationMode = shared
+    ? shared.guessFree === true
+      ? 'guess-free'
+      : 'classic'
+    : 'guess-free'
+  return createSession(
+    difficulty,
+    shared?.seed,
+    shared?.firstMove ?? null,
+    generationMode,
+  )
 }
 
 function getMineGrade(session: MineSession): string {
@@ -109,6 +126,7 @@ function describeCell(board: MineBoard, index: number): string {
   const row = Math.floor(index / board.width) + 1
   const column = (index % board.width) + 1
   const cell = board.cells[index]
+  if (board.detonatedIndex === index) return `行${row} 列${column} 踏んだ地雷`
   if (cell.state === 'flagged') return `行${row} 列${column} 旗`
   if (cell.state === 'hidden') return `行${row} 列${column} 未開封`
   if (cell.mine) return `行${row} 列${column} 地雷`
@@ -116,9 +134,11 @@ function describeCell(board: MineBoard, index: number): string {
 }
 
 export function MinesweeperGame() {
+  const isSharedGame = readSharedGameParameters('minesweeper') !== null
   const [session, setSession] = useStoredState<MineSession>(
-    'chikichiki:minesweeper:v3',
+    'chikichiki:minesweeper:v4',
     createInitialSession,
+    isSharedGame,
   )
   const [bestTimes, setBestTimes] = useStoredState<BestTimes>(
     'chikichiki:minesweeper:best:v1',
@@ -129,6 +149,7 @@ export function MinesweeperGame() {
     () => ({ beginner: 0, intermediate: 0, expert: 0 }),
   )
   const [cellSize, setCellSize] = useState(28)
+  const [pendingDifficulty, setPendingDifficulty] = useState<MineDifficulty | null>(null)
   const [cascade, setCascade] = useState<CascadeReaction | null>(null)
   const [resultOpen, setResultOpen] = useState(
     session.board.status === 'won' || session.board.status === 'lost',
@@ -137,22 +158,11 @@ export function MinesweeperGame() {
   const longPressedIndex = useRef<number | null>(null)
   const cascadeTimer = useRef<number | null>(null)
   const cascadeId = useRef(0)
-  const loadedShare = useRef<string | null>(null)
   const { playEffect } = useAppExperience()
   const { countdown, isCountingDown, restartCountdown } = useGameCountdown(
     session.elapsedSeconds === 0 &&
       (session.board.status === 'ready' || session.firstMoveIndex !== null),
   )
-  const shared = readSharedGameParameters('minesweeper')
-  const requestedDifficulty = shared?.difficulty ?? null
-  const sharedDifficulty: MineDifficulty = isMineDifficulty(requestedDifficulty)
-    ? requestedDifficulty
-    : 'beginner'
-  const sharedSeed = shared?.seed ?? null
-  const sharedFirstMove = shared?.firstMove ?? null
-  const sharedKey = sharedSeed === null
-    ? null
-    : `${sharedSeed}:${sharedDifficulty}:${sharedFirstMove}`
   const board = session.board
   const flags = countFlags(board)
 
@@ -168,17 +178,6 @@ export function MinesweeperGame() {
     }, 1000)
     return () => window.clearInterval(timer)
   }, [board.status, isCountingDown, setSession])
-
-  useEffect(() => {
-    if (sharedSeed === null || !sharedKey || loadedShare.current === sharedKey) {
-      return
-    }
-    loadedShare.current = sharedKey
-    setSession(createSession(sharedDifficulty, sharedSeed, sharedFirstMove))
-    setCascade(null)
-    setResultOpen(false)
-    restartCountdown()
-  }, [restartCountdown, setSession, sharedDifficulty, sharedFirstMove, sharedKey, sharedSeed])
 
   useEffect(() => {
     if (board.status !== 'won') {
@@ -212,16 +211,25 @@ export function MinesweeperGame() {
     [],
   )
 
-  function startNewGame(difficulty: MineDifficulty): void {
+  function startNewGame(
+    difficulty: MineDifficulty,
+    generationMode: MineGenerationMode = board.generationMode,
+  ): void {
     window.history.replaceState(
       null,
       '',
       `${window.location.pathname}${window.location.search}#/minesweeper`,
     )
-    setSession(createSession(difficulty))
+    setSession(createSession(difficulty, undefined, null, generationMode))
     setCascade(null)
     setResultOpen(false)
     restartCountdown()
+  }
+
+  function requestDifficultyChange(difficulty: MineDifficulty): void {
+    if (difficulty !== session.difficulty) {
+      setPendingDifficulty(difficulty)
+    }
   }
 
   function reveal(index: number): void {
@@ -333,7 +341,7 @@ export function MinesweeperGame() {
                 aria-pressed={session.difficulty === difficulty}
                 className={session.difficulty === difficulty ? 'active' : ''}
                 key={difficulty}
-                onClick={() => startNewGame(difficulty)}
+                onClick={() => requestDifficultyChange(difficulty)}
                 type="button"
               >
                 {configuration.label}
@@ -347,7 +355,10 @@ export function MinesweeperGame() {
             difficulty={session.difficulty}
             disabled={session.firstMoveIndex === null}
             disabledReason="最初のマスを開くと、同じ地雷配置を共有できます"
-            extraParameters={{ first: session.firstMoveIndex }}
+            extraParameters={{
+              first: session.firstMoveIndex,
+              logic: board.generationMode === 'guess-free' ? 1 : 0,
+            }}
             game="minesweeper"
             seed={board.seed}
             title="ちきちきまいんすいーぱ。"
@@ -380,6 +391,49 @@ export function MinesweeperGame() {
         </div>
       </div>
 
+      <div className="mine-mode-row">
+        <label
+          className="sound-toggle mine-mode-toggle"
+          data-tooltip="ONでは公開された数字だけで完走できる盤面を生成します。OFFでは初手安全のみのクラシック配置に戻ります"
+        >
+          <ShieldCheck aria-hidden="true" />
+          <span>
+            <strong>推測不要</strong>
+            <small>論理だけで解ける盤面</small>
+          </span>
+          <input
+            aria-label="推測不要モード"
+            checked={board.generationMode === 'guess-free'}
+            onChange={(event) => startNewGame(
+              session.difficulty,
+              event.target.checked ? 'guess-free' : 'classic',
+            )}
+            type="checkbox"
+          />
+          <i aria-hidden="true" />
+        </label>
+        <p>
+          {board.generationMode === 'guess-free'
+            ? '数字から確定できる手だけで最後まで進めます。'
+            : 'オリジナル同様、局面によって推測が必要です。'}
+        </p>
+      </div>
+
+      <div className="mine-legend" aria-label="記号と色の説明">
+        <span className="flag-legend" data-tooltip="自分で置いた地雷候補。色は正解または不正解を示しません">
+          <Flag aria-hidden="true" fill="currentColor" />
+          <strong>旗</strong> 地雷候補・正誤未判定
+        </span>
+        <span className="mine-legend-item" data-tooltip="ゲーム終了時に赤く表示される、実際に配置された地雷">
+          <Bomb aria-hidden="true" />
+          <strong>赤い爆弾</strong> 実際の地雷
+        </span>
+        <span className="detonated-legend" data-tooltip="ゲームオーバーの原因になった地雷は黄色い二重輪で表示されます">
+          <Bomb aria-hidden="true" />
+          <strong>黄色い輪</strong> 踏んだ地雷
+        </span>
+      </div>
+
       <div className="minefield-scroll" tabIndex={0} aria-label="スクロール可能な地雷原">
         <div aria-live="polite" className="sr-only">
           {cascade
@@ -394,7 +448,7 @@ export function MinesweeperGame() {
           {board.cells.map((cell, index) => (
             <button
               aria-label={describeCell(board, index)}
-              className={`mine-cell ${cell.state} adjacent-${cell.adjacent}`}
+              className={`mine-cell ${cell.state} adjacent-${cell.adjacent} ${board.detonatedIndex === index ? 'detonated' : ''}`}
               key={index}
               onClick={() => reveal(index)}
               onContextMenu={(event) => {
@@ -444,7 +498,7 @@ export function MinesweeperGame() {
         ) : board.status === 'lost' ? (
           <><strong>GAME OVER</strong><span>地雷を開きました。新しい盤面でもう一度。</span></>
         ) : board.status === 'ready' ? (
-          <><strong>READY</strong><span>最初に開くマスと、その周囲には地雷がありません。</span></>
+          <><strong>READY</strong><span>{board.generationMode === 'guess-free' ? '最初の一手から、推測せずに完走できる盤面を生成します。' : '最初に開くマスと、その周囲には地雷がありません。'}</span></>
         ) : (
           <><strong>PLAYING</strong><span>右クリックまたは長押しで旗。数字を再度押すと周囲を開きます。</span></>
         )}
@@ -455,6 +509,20 @@ export function MinesweeperGame() {
         onPrimary={() => startNewGame(session.difficulty)}
         open={resultOpen}
         primaryLabel={board.status === 'lost' ? 'もう一度' : '次の盤面'}
+        shareAction={(
+          <GameShareButton
+            buttonLabel="同じ盤面を共有"
+            className="result-share-button"
+            difficulty={session.difficulty}
+            extraParameters={{
+              first: session.firstMoveIndex,
+              logic: board.generationMode === 'guess-free' ? 1 : 0,
+            }}
+            game="minesweeper"
+            seed={board.seed}
+            title="ちきちきまいんすいーぱ。"
+          />
+        )}
         stats={[
           { label: 'SCORE', value: session.score.toLocaleString() },
           { label: 'TIME', value: formatElapsedTime(session.elapsedSeconds) },
@@ -473,6 +541,19 @@ export function MinesweeperGame() {
             : 'すべての安全なマスを開きました。'
         }
         title={board.status === 'lost' ? 'GAME OVER' : '地雷原を制覇'}
+      />
+      <ConfirmationModal
+        confirmLabel={`${pendingDifficulty ? CONFIGURATIONS[pendingDifficulty].label : ''}で開始`}
+        message="現在の盤面とスコアは終了し、新しい地雷原を生成します。この操作は元に戻せません。"
+        onCancel={() => setPendingDifficulty(null)}
+        onConfirm={() => {
+          if (pendingDifficulty) {
+            startNewGame(pendingDifficulty)
+          }
+          setPendingDifficulty(null)
+        }}
+        open={pendingDifficulty !== null}
+        title="難易度を変更しますか？"
       />
     </section>
   )

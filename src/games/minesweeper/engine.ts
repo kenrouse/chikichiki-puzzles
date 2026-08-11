@@ -1,5 +1,6 @@
 export type MineCellState = 'hidden' | 'open' | 'flagged'
 export type MineGameStatus = 'ready' | 'playing' | 'won' | 'lost'
+export type MineGenerationMode = 'classic' | 'guess-free'
 
 export interface MineCell {
   adjacent: number
@@ -9,7 +10,10 @@ export interface MineCell {
 
 export interface MineBoard {
   cells: MineCell[]
+  detonatedIndex: number | null
   generated: boolean
+  generationAttempts: number
+  generationMode: MineGenerationMode
   height: number
   mineCount: number
   seed: number
@@ -37,6 +41,7 @@ function createRandom(seed: number): () => number {
 export function createMineBoard(
   configuration: MineConfiguration,
   seed: number,
+  generationMode: MineGenerationMode = 'classic',
 ): MineBoard {
   const cellCount = configuration.width * configuration.height
   if (
@@ -55,7 +60,10 @@ export function createMineBoard(
       mine: false,
       state: 'hidden' as const,
     })),
+    detonatedIndex: null,
     generated: false,
+    generationAttempts: 0,
+    generationMode,
     seed,
     status: 'ready',
   }
@@ -87,7 +95,11 @@ export function getMineNeighbors(board: MineBoard, index: number): number[] {
   return neighbors
 }
 
-function generateMines(board: MineBoard, safeIndex: number): MineBoard {
+function generateMineCandidate(
+  board: MineBoard,
+  safeIndex: number,
+  candidateSeed: number,
+): MineBoard {
   const cells = board.cells.map((cell) => ({ ...cell }))
   const preferredSafeZone = new Set([
     safeIndex,
@@ -98,7 +110,7 @@ function generateMines(board: MineBoard, safeIndex: number): MineBoard {
   const available = Array.from({ length: cells.length }, (_, index) => index).filter(
     (index) => index !== safeIndex && (!usePreferredSafeZone || !preferredSafeZone.has(index)),
   )
-  const random = createRandom(board.seed)
+  const random = createRandom(candidateSeed)
 
   for (let index = available.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(random() * (index + 1))
@@ -121,10 +133,178 @@ function generateMines(board: MineBoard, safeIndex: number): MineBoard {
   return { ...board, cells, generated: true, status: 'playing' }
 }
 
+function openLogicalRegion(
+  board: MineBoard,
+  startIndexes: Iterable<number>,
+  opened: Set<number>,
+): boolean {
+  const queue = [...startIndexes]
+  const queued = new Set(queue)
+
+  while (queue.length > 0) {
+    const index = queue.shift()
+    if (index === undefined || opened.has(index)) {
+      continue
+    }
+    const cell = board.cells[index]
+    if (cell.mine) {
+      return false
+    }
+    opened.add(index)
+    if (cell.adjacent === 0) {
+      for (const neighborIndex of getMineNeighbors(board, index)) {
+        if (!opened.has(neighborIndex) && !queued.has(neighborIndex)) {
+          queue.push(neighborIndex)
+          queued.add(neighborIndex)
+        }
+      }
+    }
+  }
+
+  return true
+}
+
+interface MineConstraint {
+  cells: number[]
+  mines: number
+}
+
+function isSubset(subset: number[], superset: Set<number>): boolean {
+  return subset.every((index) => superset.has(index))
+}
+
+export function isMineBoardSolvableWithoutGuess(
+  board: MineBoard,
+  firstMoveIndex: number,
+): boolean {
+  if (!board.generated || board.cells[firstMoveIndex]?.mine !== false) {
+    return false
+  }
+
+  const opened = new Set<number>()
+  const knownMines = new Set<number>()
+  if (!openLogicalRegion(board, [firstMoveIndex], opened)) {
+    return false
+  }
+
+  const safeCellCount = board.cells.length - board.mineCount
+  while (opened.size < safeCellCount) {
+    const safeMoves = new Set<number>()
+    const mineMoves = new Set<number>()
+    const hidden = board.cells
+      .map((_, index) => index)
+      .filter((index) => !opened.has(index) && !knownMines.has(index))
+    const minesRemaining = board.mineCount - knownMines.size
+
+    if (minesRemaining === 0) {
+      hidden.forEach((index) => safeMoves.add(index))
+    } else if (minesRemaining === hidden.length) {
+      hidden.forEach((index) => mineMoves.add(index))
+    }
+
+    const constraints: MineConstraint[] = []
+    for (const index of opened) {
+      const cell = board.cells[index]
+      if (cell.adjacent === 0) {
+        continue
+      }
+      const neighbors = getMineNeighbors(board, index)
+      const unknown = neighbors.filter(
+        (neighborIndex) =>
+          !opened.has(neighborIndex) && !knownMines.has(neighborIndex),
+      )
+      const adjacentKnownMines = neighbors.filter((neighborIndex) =>
+        knownMines.has(neighborIndex),
+      ).length
+      const remaining = cell.adjacent - adjacentKnownMines
+      if (remaining < 0 || remaining > unknown.length) {
+        return false
+      }
+      if (unknown.length === 0) {
+        continue
+      }
+      if (remaining === 0) {
+        unknown.forEach((neighborIndex) => safeMoves.add(neighborIndex))
+      } else if (remaining === unknown.length) {
+        unknown.forEach((neighborIndex) => mineMoves.add(neighborIndex))
+      } else {
+        constraints.push({ cells: unknown.sort((a, b) => a - b), mines: remaining })
+      }
+    }
+
+    for (let leftIndex = 0; leftIndex < constraints.length; leftIndex += 1) {
+      const left = constraints[leftIndex]
+      const leftSet = new Set(left.cells)
+      for (let rightIndex = leftIndex + 1; rightIndex < constraints.length; rightIndex += 1) {
+        const right = constraints[rightIndex]
+        const rightSet = new Set(right.cells)
+        let smaller = left
+        let larger = right
+        let largerSet = rightSet
+        if (right.cells.length < left.cells.length) {
+          smaller = right
+          larger = left
+          largerSet = leftSet
+        }
+        if (!isSubset(smaller.cells, largerSet)) {
+          continue
+        }
+        const smallerSet = new Set(smaller.cells)
+        const difference = larger.cells.filter(
+          (index) => !smallerSet.has(index),
+        )
+        const mineDifference = larger.mines - smaller.mines
+        if (mineDifference === 0) {
+          difference.forEach((index) => safeMoves.add(index))
+        } else if (mineDifference === difference.length) {
+          difference.forEach((index) => mineMoves.add(index))
+        }
+      }
+    }
+
+    for (const index of mineMoves) {
+      if (safeMoves.has(index)) {
+        return false
+      }
+      knownMines.add(index)
+    }
+    if (safeMoves.size === 0 && mineMoves.size === 0) {
+      return false
+    }
+    if (!openLogicalRegion(board, safeMoves, opened)) {
+      return false
+    }
+  }
+
+  return true
+}
+
+function generateMines(board: MineBoard, safeIndex: number): MineBoard {
+  if (board.generationMode === 'classic') {
+    return {
+      ...generateMineCandidate(board, safeIndex, board.seed),
+      generationAttempts: 1,
+    }
+  }
+
+  const maxAttempts = 2048
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidateSeed =
+      (board.seed + Math.imul(attempt, 0x9e3779b9)) >>> 0
+    const candidate = generateMineCandidate(board, safeIndex, candidateSeed)
+    if (isMineBoardSolvableWithoutGuess(candidate, safeIndex)) {
+      return { ...candidate, generationAttempts: attempt + 1 }
+    }
+  }
+
+  throw new Error('Could not generate a guess-free minefield')
+}
+
 function openFrom(board: MineBoard, startIndexes: number[]): MineBoard {
   const cells = board.cells.map((cell) => ({ ...cell }))
   const queue = [...startIndexes]
   const queued = new Set(queue)
+  let detonatedIndex = board.detonatedIndex ?? null
   let status = board.status
 
   while (queue.length > 0) {
@@ -138,6 +318,9 @@ function openFrom(board: MineBoard, startIndexes: number[]): MineBoard {
     }
     cell.state = 'open'
     if (cell.mine) {
+      if (detonatedIndex === null) {
+        detonatedIndex = index
+      }
       status = 'lost'
       continue
     }
@@ -164,7 +347,7 @@ function openFrom(board: MineBoard, startIndexes: number[]): MineBoard {
     status = 'won'
   }
 
-  return { ...board, cells, status }
+  return { ...board, cells, detonatedIndex, status }
 }
 
 export function revealMineCell(board: MineBoard, index: number): MineBoard {

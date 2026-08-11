@@ -5,6 +5,7 @@ import {
   countFlags,
   createMineBoard,
   getMineNeighbors,
+  isMineBoardSolvableWithoutGuess,
   revealMineCell,
   toggleMineFlag,
 } from './engine'
@@ -35,6 +36,21 @@ describe('Minesweeper engine', () => {
     expect(first.cells).toEqual(second.cells)
   })
 
+  test.each([
+    { configuration: { width: 10, height: 10, mineCount: 10 }, firstMove: 44, seed: 7 },
+    { configuration: { width: 20, height: 20, mineCount: 60 }, firstMove: 210, seed: 77 },
+    { configuration: { width: 40, height: 40, mineCount: 320 }, firstMove: 820, seed: 777 },
+  ])('generates a guess-free $configuration.width x $configuration.height board', ({ configuration, firstMove, seed }) => {
+    const board = revealMineCell(
+      createMineBoard(configuration, seed, 'guess-free'),
+      firstMove,
+    )
+
+    expect(board.generationMode).toBe('guess-free')
+    expect(board.generationAttempts).toBeGreaterThan(0)
+    expect(isMineBoardSolvableWithoutGuess(board, firstMove)).toBe(true)
+  })
+
   test('toggles flags without opening the cell', () => {
     const initial = createMineBoard(
       { width: 10, height: 10, mineCount: 10 },
@@ -61,6 +77,8 @@ describe('Minesweeper engine', () => {
     const mineIndex = playing.cells.findIndex((cell) => cell.mine)
     const lost = revealMineCell(playing, mineIndex)
     expect(lost.status).toBe('lost')
+    expect(lost.detonatedIndex).toBe(mineIndex)
+    expect(lost.cells.filter((cell) => cell.mine && cell.state === 'open')).toHaveLength(3)
   })
 
   test('rewards larger reveal cascades with stronger multipliers', () => {

@@ -3,8 +3,12 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 export function useStoredState<T>(
   key: string,
   createInitialValue: () => T,
+  ignoreStoredValue = false,
 ): [T, Dispatch<SetStateAction<T>>] {
   const [value, setValue] = useState<T>(() => {
+    if (ignoreStoredValue) {
+      return createInitialValue()
+    }
     try {
       const stored = window.localStorage.getItem(key)
       return stored ? (JSON.parse(stored) as T) : createInitialValue()

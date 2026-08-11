@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Music2,
   Palette,
@@ -38,6 +39,8 @@ interface AppPreferences {
   bgmEnabled: boolean
   bgmVolume: number
   colorTheme: ColorTheme
+  effectsEnabled: boolean
+  pointerMarkerEnabled: boolean
   sfxEnabled: boolean
   sfxVolume: number
 }
@@ -49,6 +52,8 @@ interface ExperienceContextValue {
   setBgmEnabled: (enabled: boolean) => void
   setBgmVolume: (volume: number) => void
   setColorTheme: (theme: ColorTheme) => void
+  setEffectsEnabled: (enabled: boolean) => void
+  setPointerMarkerEnabled: (enabled: boolean) => void
   setSfxEnabled: (enabled: boolean) => void
   setSfxVolume: (volume: number) => void
 }
@@ -64,8 +69,18 @@ interface ResultModalProps {
   onPrimary: () => void
   open: boolean
   primaryLabel: string
+  shareAction?: ReactNode
   stats: ResultStat[]
   subtitle: string
+  title: string
+}
+
+interface ConfirmationModalProps {
+  confirmLabel: string
+  message: string
+  onCancel: () => void
+  onConfirm: () => void
+  open: boolean
   title: string
 }
 
@@ -83,6 +98,7 @@ const THEMES: Array<{
 ]
 
 const BGM_NOTES = [261.63, 329.63, 392, 493.88, 440, 392, 329.63, 293.66]
+const BGM_MAX_GAIN = 0.1
 
 function readInitialPreferences(): AppPreferences {
   let appearance: Appearance = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -96,14 +112,31 @@ function readInitialPreferences(): AppPreferences {
   } catch {
     // Keep the system preference when migration data is unavailable.
   }
-  return {
+  const defaults: AppPreferences = {
     appearance,
     bgmEnabled: false,
     bgmVolume: 0.32,
     colorTheme: 'archive',
+    effectsEnabled: true,
+    pointerMarkerEnabled: false,
     sfxEnabled: true,
     sfxVolume: 0.58,
   }
+  try {
+    const previousPreferences =
+      window.localStorage.getItem('chikichiki:preferences:v3') ??
+      window.localStorage.getItem('chikichiki:preferences:v2')
+    if (previousPreferences) {
+      return {
+        ...defaults,
+        ...(JSON.parse(previousPreferences) as Partial<AppPreferences>),
+        pointerMarkerEnabled: false,
+      }
+    }
+  } catch {
+    // Use defaults when the previous settings cannot be migrated.
+  }
+  return defaults
 }
 
 function createTone(
@@ -131,13 +164,45 @@ function createTone(
   oscillator.stop(start + duration + 0.02)
 }
 
+function createBgmTone(
+  context: AudioContext,
+  frequency: number,
+  duration: number,
+  volume: number,
+  output: AudioNode,
+  type: OscillatorType,
+): void {
+  if (context.state !== 'running') {
+    return
+  }
+  const start = context.currentTime
+  const oscillator = context.createOscillator()
+  const gain = context.createGain()
+  oscillator.type = type
+  oscillator.frequency.setValueAtTime(frequency, start)
+  gain.gain.setValueAtTime(0.0001, start)
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.035)
+  gain.gain.exponentialRampToValueAtTime(volume * 0.55, start + duration * 0.72)
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+  oscillator.connect(gain)
+  gain.connect(output)
+  oscillator.start(start)
+  oscillator.stop(start + duration + 0.02)
+}
+
+export function getBgmGain(volume: number): number {
+  const normalized = Math.min(1, Math.max(0, volume))
+  return BGM_MAX_GAIN * normalized ** 1.2
+}
+
 export function AppExperienceProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useStoredState<AppPreferences>(
-    'chikichiki:preferences:v2',
+    'chikichiki:preferences:v4',
     readInitialPreferences,
   )
   const [audioRevision, setAudioRevision] = useState(0)
   const audioContext = useRef<AudioContext | null>(null)
+  const bgmMasterGain = useRef<GainNode | null>(null)
   const bgmStep = useRef(0)
 
   const ensureAudio = useCallback(async (): Promise<AudioContext | null> => {
@@ -146,7 +211,19 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
       if (!AudioContextClass) {
         return null
       }
-      audioContext.current = new AudioContextClass()
+      const context = new AudioContextClass()
+      const masterGain = context.createGain()
+      const compressor = context.createDynamicsCompressor()
+      masterGain.gain.value = 0
+      compressor.threshold.value = -10
+      compressor.knee.value = 12
+      compressor.ratio.value = 8
+      compressor.attack.value = 0.004
+      compressor.release.value = 0.18
+      masterGain.connect(compressor)
+      compressor.connect(context.destination)
+      audioContext.current = context
+      bgmMasterGain.current = masterGain
       setAudioRevision((current) => current + 1)
     }
     if (audioContext.current.state === 'suspended') {
@@ -233,7 +310,16 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.theme = preferences.appearance
     document.documentElement.dataset.colorTheme = preferences.colorTheme
-  }, [preferences.appearance, preferences.colorTheme])
+    document.documentElement.dataset.effects = preferences.effectsEnabled ? 'on' : 'off'
+    document.documentElement.dataset.pointerMarker = preferences.pointerMarkerEnabled
+      ? 'on'
+      : 'off'
+  }, [
+    preferences.appearance,
+    preferences.colorTheme,
+    preferences.effectsEnabled,
+    preferences.pointerMarkerEnabled,
+  ])
 
   useEffect(() => {
     if (!preferences.bgmEnabled) {
@@ -246,32 +332,46 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const context = audioContext.current
+    const masterGain = bgmMasterGain.current
+    if (!context || !masterGain || context.state !== 'running') {
+      return
+    }
+    const target = preferences.bgmEnabled
+      ? getBgmGain(preferences.bgmVolume)
+      : 0
+    masterGain.gain.cancelScheduledValues(context.currentTime)
+    masterGain.gain.setTargetAtTime(target, context.currentTime, 0.025)
+  }, [audioRevision, preferences.bgmEnabled, preferences.bgmVolume])
+
+  useEffect(() => {
+    const context = audioContext.current
+    const masterGain = bgmMasterGain.current
     if (
       !preferences.bgmEnabled ||
-      preferences.bgmVolume <= 0 ||
       !context ||
+      !masterGain ||
       context.state !== 'running'
     ) {
       return
     }
     const playStep = () => {
       const frequency = BGM_NOTES[bgmStep.current % BGM_NOTES.length]
-      const volume = preferences.bgmVolume * 0.035
-      createTone(context, frequency, 0.28, volume, 'sine')
+      createBgmTone(context, frequency, 0.32, 1, masterGain, 'sine')
       if (bgmStep.current % 4 === 0) {
-        createTone(context, frequency / 2, 0.48, volume * 0.75, 'triangle')
+        createBgmTone(context, frequency / 2, 0.52, 0.62, masterGain, 'triangle')
       }
       bgmStep.current += 1
     }
     playStep()
     const timer = window.setInterval(playStep, 360)
     return () => window.clearInterval(timer)
-  }, [audioRevision, preferences.bgmEnabled, preferences.bgmVolume])
+  }, [audioRevision, preferences.bgmEnabled])
 
   useEffect(
     () => () => {
       const context = audioContext.current
       audioContext.current = null
+      bgmMasterGain.current = null
       void context?.close()
     },
     [],
@@ -286,6 +386,9 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
         setBgmEnabled,
         setBgmVolume: (bgmVolume) => updatePreferences({ bgmVolume }),
         setColorTheme: (colorTheme) => updatePreferences({ colorTheme }),
+        setEffectsEnabled: (effectsEnabled) => updatePreferences({ effectsEnabled }),
+        setPointerMarkerEnabled: (pointerMarkerEnabled) =>
+          updatePreferences({ pointerMarkerEnabled }),
         setSfxEnabled: (sfxEnabled) => updatePreferences({ sfxEnabled }),
         setSfxVolume: (sfxVolume) => updatePreferences({ sfxVolume }),
       }}
@@ -329,7 +432,7 @@ export function SettingsPanel({
     return null
   }
 
-  return (
+  return createPortal(
     <div className="settings-backdrop" onMouseDown={onClose}>
       <section
         aria-labelledby="settings-title"
@@ -441,18 +544,49 @@ export function SettingsPanel({
             <output>{Math.round(experience.preferences.sfxVolume * 100)}%</output>
           </label>
         </fieldset>
+        <fieldset>
+          <legend><SlidersHorizontal aria-hidden="true" /> 画面演出</legend>
+          <label className="sound-toggle">
+            <span>マウス位置の丸いマーカー</span>
+            <input
+              checked={experience.preferences.pointerMarkerEnabled}
+              onChange={(event) =>
+                experience.setPointerMarkerEnabled(event.target.checked)
+              }
+              type="checkbox"
+            />
+            <i aria-hidden="true" />
+          </label>
+          <label className="sound-toggle">
+            <span>アニメーションと追加リアクション</span>
+            <input
+              checked={experience.preferences.effectsEnabled}
+              onChange={(event) =>
+                experience.setEffectsEnabled(event.target.checked)
+              }
+              type="checkbox"
+            />
+            <i aria-hidden="true" />
+          </label>
+        </fieldset>
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
 export function InteractionEffects() {
+  const { preferences } = useAppExperience()
   const pointer = useRef<HTMLDivElement>(null)
   const [bursts, setBursts] = useState<Array<{ id: number; x: number; y: number }>>([])
 
   useEffect(() => {
     const handleMove = (event: PointerEvent) => {
-      if (event.pointerType === 'touch' || !pointer.current) {
+      if (
+        !preferences.pointerMarkerEnabled ||
+        event.pointerType === 'touch' ||
+        !pointer.current
+      ) {
         return
       }
       pointer.current.style.setProperty('--pointer-x', `${event.clientX}px`)
@@ -460,6 +594,9 @@ export function InteractionEffects() {
       pointer.current.classList.add('visible')
     }
     const handleDown = (event: PointerEvent) => {
+      if (!preferences.effectsEnabled) {
+        return
+      }
       const id = Date.now() + Math.random()
       setBursts((current) => [...current.slice(-5), { id, x: event.clientX, y: event.clientY }])
       window.setTimeout(
@@ -476,12 +613,14 @@ export function InteractionEffects() {
       window.removeEventListener('pointerdown', handleDown)
       document.documentElement.removeEventListener('mouseleave', handleLeave)
     }
-  }, [])
+  }, [preferences.effectsEnabled, preferences.pointerMarkerEnabled])
 
   return (
     <>
-      <div aria-hidden="true" className="pointer-reactor" ref={pointer} />
-      {bursts.map((burst) => (
+      {preferences.pointerMarkerEnabled ? (
+        <div aria-hidden="true" className="pointer-reactor" ref={pointer} />
+      ) : null}
+      {preferences.effectsEnabled ? bursts.map((burst) => (
         <span
           aria-hidden="true"
           className="interaction-burst"
@@ -490,8 +629,108 @@ export function InteractionEffects() {
         >
           {Array.from({ length: 8 }, (_, index) => <i key={index} />)}
         </span>
-      ))}
+      )) : null}
+      <GlobalTooltip />
     </>
+  )
+}
+
+interface TooltipState {
+  placement: 'above' | 'below'
+  text: string
+  x: number
+  y: number
+}
+
+const CLICKABLE_SELECTOR = [
+  '[data-tooltip]',
+  'button',
+  'a[href]',
+  'input:not([type="hidden"])',
+  'select',
+  '[role="button"]',
+  '[role="tab"]',
+  '[role="gridcell"]',
+].join(',')
+
+function getTooltipText(element: HTMLElement): string {
+  const explicit = element.dataset.tooltip
+  if (explicit) {
+    return explicit
+  }
+  const accessibleName = element.getAttribute('aria-label')
+  if (accessibleName) {
+    return accessibleName
+  }
+  const title = element.getAttribute('title')
+  if (title) {
+    return title
+  }
+  const label = element.closest('label')?.innerText
+  if (label) {
+    return label.replace(/\s+/g, ' ').trim()
+  }
+  return element.innerText.replace(/\s+/g, ' ').trim()
+}
+
+function GlobalTooltip() {
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null)
+
+  useEffect(() => {
+    const show = (target: EventTarget | null, pointerType?: string) => {
+      if (pointerType === 'touch' || !(target instanceof Element)) {
+        return
+      }
+      const clickable = target.closest<HTMLElement>(CLICKABLE_SELECTOR)
+      if (!clickable) {
+        return
+      }
+      const text = getTooltipText(clickable)
+      if (!text) {
+        return
+      }
+      const rect = clickable.getBoundingClientRect()
+      const placement = rect.bottom + 90 < window.innerHeight ? 'below' : 'above'
+      setTooltip({
+        placement,
+        text,
+        x: Math.min(Math.max(rect.left + rect.width / 2, 130), window.innerWidth - 130),
+        y: placement === 'below' ? rect.bottom + 9 : rect.top - 9,
+      })
+    }
+    const handlePointerOver = (event: PointerEvent) =>
+      show(event.target, event.pointerType)
+    const handleFocusIn = (event: FocusEvent) => show(event.target)
+    const hide = () => setTooltip(null)
+    document.addEventListener('pointerover', handlePointerOver)
+    document.addEventListener('pointerout', hide)
+    document.addEventListener('pointerdown', hide)
+    document.addEventListener('focusin', handleFocusIn)
+    document.addEventListener('focusout', hide)
+    document.addEventListener('scroll', hide, true)
+    return () => {
+      document.removeEventListener('pointerover', handlePointerOver)
+      document.removeEventListener('pointerout', hide)
+      document.removeEventListener('pointerdown', hide)
+      document.removeEventListener('focusin', handleFocusIn)
+      document.removeEventListener('focusout', hide)
+      document.removeEventListener('scroll', hide, true)
+    }
+  }, [])
+
+  if (!tooltip) {
+    return null
+  }
+  return createPortal(
+    <div
+      className="global-tooltip"
+      data-placement={tooltip.placement}
+      role="tooltip"
+      style={{ left: tooltip.x, top: tooltip.y }}
+    >
+      {tooltip.text}
+    </div>,
+    document.body,
   )
 }
 
@@ -534,12 +773,62 @@ export function CountdownOverlay({ value }: { value: number | null }) {
   )
 }
 
+export function ConfirmationModal({
+  confirmLabel,
+  message,
+  onCancel,
+  onConfirm,
+  open,
+  title,
+}: ConfirmationModalProps) {
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onCancel()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onCancel, open])
+
+  if (!open) {
+    return null
+  }
+
+  return createPortal(
+    <div className="confirmation-backdrop" onMouseDown={onCancel}>
+      <section
+        aria-labelledby="confirmation-title"
+        aria-modal="true"
+        className="confirmation-dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+        role="alertdialog"
+      >
+        <p>RESET GAME</p>
+        <h2 id="confirmation-title">{title}</h2>
+        <span>{message}</span>
+        <div className="confirmation-actions">
+          <button onClick={onCancel} type="button">キャンセル</button>
+          <button className="command-button" onClick={onConfirm} type="button">
+            {confirmLabel}
+          </button>
+        </div>
+      </section>
+    </div>,
+    document.body,
+  )
+}
+
 export function ResultModal({
   grade,
   onClose,
   onPrimary,
   open,
   primaryLabel,
+  shareAction,
   stats,
   subtitle,
   title,
@@ -560,7 +849,7 @@ export function ResultModal({
   if (!open) {
     return null
   }
-  return (
+  return createPortal(
     <div className="result-backdrop">
       <section aria-labelledby="result-title" aria-modal="true" className="result-modal" role="dialog">
         <div aria-hidden="true" className="result-rays" />
@@ -582,9 +871,11 @@ export function ResultModal({
         <div className="result-actions">
           <button className="command-button" onClick={onPrimary} type="button">{primaryLabel}</button>
           <button onClick={onClose} type="button">盤面を見る</button>
+          {shareAction}
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

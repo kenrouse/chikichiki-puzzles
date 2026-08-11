@@ -20,6 +20,7 @@ describe('seeded game sharing', () => {
       difficulty: 'expert',
       firstMove: null,
       game: 'shisen',
+      guessFree: null,
       seed: 20090101,
     })
     expect(parseSharedGameHash('#/sudoku?seed=-1')).toBeNull()
@@ -33,9 +34,25 @@ describe('seeded game sharing', () => {
       'minesweeper',
       77,
       'beginner',
-      { first: 44 },
+      { first: 44, logic: 1 },
     )
     expect(url).toContain('first=44')
-    expect(parseSharedGameHash(new URL(url).hash)?.firstMove).toBe(44)
+    expect(url).toContain('logic=1')
+    expect(parseSharedGameHash(new URL(url).hash)).toMatchObject({
+      firstMove: 44,
+      guessFree: true,
+    })
+  })
+
+  test('preserves the classic Minesweeper generation mode', () => {
+    const url = buildSeededGameUrl(
+      'https://kenrouse.github.io/chikichiki-puzzles/',
+      'minesweeper',
+      88,
+      'expert',
+      { first: 820, logic: 0 },
+    )
+
+    expect(parseSharedGameHash(new URL(url).hash)?.guessFree).toBe(false)
   })
 })

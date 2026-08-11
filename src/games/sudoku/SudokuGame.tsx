@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
 import {
   Eraser,
   Eye,
   EyeOff,
+  Highlighter,
   Lightbulb,
   NotebookPen,
   RefreshCw,
   RotateCcw,
 } from 'lucide-react'
 import {
+  ConfirmationModal,
   CountdownOverlay,
   ResultModal,
   useAppExperience,
@@ -103,9 +105,11 @@ function isPeer(first: number, second: number): boolean {
 }
 
 export function SudokuGame() {
+  const isSharedGame = readSharedGameParameters('sudoku') !== null
   const [session, setSession] = useStoredState<SudokuSession>(
     'chikichiki:sudoku:v2',
     createInitialSession,
+    isSharedGame,
   )
   const [selected, setSelected] = useState(() => {
     const firstEmpty = session.puzzle.puzzle.findIndex((value) => value === 0)
@@ -113,21 +117,15 @@ export function SudokuGame() {
   })
   const [noteMode, setNoteMode] = useState(false)
   const [placementGuide, setPlacementGuide] = useState(false)
+  const [sameNumberHighlight, setSameNumberHighlight] = useState(false)
+  const [pendingDifficulty, setPendingDifficulty] = useState<SudokuDifficulty | null>(null)
   const [history, setHistory] = useState<SudokuHistoryEntry[]>([])
   const [pulseCell, setPulseCell] = useState<number | null>(null)
   const [resultOpen, setResultOpen] = useState(session.status === 'won')
-  const loadedShare = useRef<string | null>(null)
   const { playEffect } = useAppExperience()
   const { countdown, isCountingDown, restartCountdown } = useGameCountdown(
     session.elapsedSeconds === 0 && session.status === 'playing',
   )
-  const shared = readSharedGameParameters('sudoku')
-  const requestedDifficulty = shared?.difficulty ?? null
-  const sharedDifficulty: SudokuDifficulty = isSudokuDifficulty(requestedDifficulty)
-    ? requestedDifficulty
-    : 'normal'
-  const sharedSeed = shared?.seed ?? null
-  const sharedKey = sharedSeed === null ? null : `${sharedSeed}:${sharedDifficulty}`
   const conflicts = getConflicts(session.values)
   const selectedValue = session.values[selected]
 
@@ -144,22 +142,6 @@ export function SudokuGame() {
     return () => window.clearInterval(timer)
   }, [isCountingDown, session.status, setSession])
 
-  useEffect(() => {
-    if (sharedSeed === null || !sharedKey || loadedShare.current === sharedKey) {
-      return
-    }
-    loadedShare.current = sharedKey
-    const next = createSession(sharedDifficulty, sharedSeed)
-    const firstEmpty = next.puzzle.puzzle.findIndex((value) => value === 0)
-    setSession(next)
-    setSelected(firstEmpty >= 0 ? firstEmpty : 0)
-    setHistory([])
-    setNoteMode(false)
-    setPlacementGuide(false)
-    setResultOpen(false)
-    restartCountdown()
-  }, [restartCountdown, setSession, sharedDifficulty, sharedKey, sharedSeed])
-
   function startNewGame(difficulty: SudokuDifficulty): void {
     window.history.replaceState(
       null,
@@ -171,10 +153,17 @@ export function SudokuGame() {
     setHistory([])
     setNoteMode(false)
     setPlacementGuide(false)
+    setSameNumberHighlight(false)
     setResultOpen(false)
     restartCountdown()
     const firstEmpty = next.puzzle.puzzle.findIndex((value) => value === 0)
     setSelected(firstEmpty >= 0 ? firstEmpty : 0)
+  }
+
+  function requestDifficultyChange(difficulty: SudokuDifficulty): void {
+    if (difficulty !== session.puzzle.difficulty) {
+      setPendingDifficulty(difficulty)
+    }
   }
 
   function rememberCurrentState(): void {
@@ -184,7 +173,7 @@ export function SudokuGame() {
     ])
   }
 
-  function enterDigit(digit: number): void {
+  function enterDigit(digit: number, forceNote = false): void {
     if (
       session.status !== 'playing' ||
       session.puzzle.puzzle[selected] !== 0 ||
@@ -193,19 +182,20 @@ export function SudokuGame() {
       return
     }
     rememberCurrentState()
+    const isNoteEntry = forceNote || noteMode
     const incorrect =
-      !noteMode && digit !== 0 && digit !== session.puzzle.solution[selected]
+      !isNoteEntry && digit !== 0 && digit !== session.puzzle.solution[selected]
     const previewValues = [...session.values]
-    if (!noteMode) {
+    if (!isNoteEntry) {
       previewValues[selected] = digit
     }
-    const willClear = !noteMode && isSudokuSolved(previewValues, session.puzzle.solution)
+    const willClear = !isNoteEntry && isSudokuSolved(previewValues, session.puzzle.solution)
     if (willClear) {
       setResultOpen(true)
       playEffect('clear')
     } else {
       playEffect(
-        noteMode
+        isNoteEntry
           ? 'select'
           : digit === 0
             ? 'undo'
@@ -219,7 +209,7 @@ export function SudokuGame() {
     setSession((current) => {
       const values = [...current.values]
       const notes = [...current.notes]
-      if (noteMode && digit !== 0) {
+      if (isNoteEntry && digit !== 0) {
         notes[selected] ^= 1 << digit
       } else {
         values[selected] = digit
@@ -350,7 +340,7 @@ export function SudokuGame() {
                 aria-pressed={session.puzzle.difficulty === difficulty}
                 className={session.puzzle.difficulty === difficulty ? 'active' : ''}
                 key={difficulty}
-                onClick={() => startNewGame(difficulty)}
+                onClick={() => requestDifficultyChange(difficulty)}
                 type="button"
               >
                 {DIFFICULTY_LABELS[difficulty]}
@@ -380,7 +370,7 @@ export function SudokuGame() {
           {session.values.map((value, index) => {
             const given = session.puzzle.puzzle[index] !== 0
             const peer = index !== selected && isPeer(index, selected)
-            const sameValue =
+            const sameValue = sameNumberHighlight &&
               selectedValue !== 0 && value === selectedValue && index !== selected
             const candidates = placementGuide
               ? getCandidates(session.values, index)
@@ -404,7 +394,18 @@ export function SudokuGame() {
                 className={classes}
                 data-sudoku-cell={index}
                 key={index}
-                onClick={() => setSelected(index)}
+                onClick={() => {
+                  setSelected(index)
+                  playEffect('select')
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  if (!given) {
+                    setSelected(index)
+                    setNoteMode(true)
+                    playEffect('select')
+                  }
+                }}
                 onKeyDown={handleCellKeyDown}
                 role="gridcell"
                 tabIndex={index === selected ? 0 : -1}
@@ -437,7 +438,16 @@ export function SudokuGame() {
         <aside className="number-console" aria-label="数字入力">
           <div className="number-pad">
             {Array.from({ length: 9 }, (_, index) => index + 1).map((digit) => (
-              <button key={digit} onClick={() => enterDigit(digit)} type="button">
+              <button
+                data-tooltip={`${digit}を確定入力。右クリックすると小さいメモとして入力`}
+                key={digit}
+                onClick={() => enterDigit(digit)}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  enterDigit(digit, true)
+                }}
+                type="button"
+              >
                 {digit}
               </button>
             ))}
@@ -488,6 +498,20 @@ export function SudokuGame() {
               {placementGuide ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
             </button>
             <button
+              aria-label={`同じ数字のハイライト ${sameNumberHighlight ? 'オン' : 'オフ'}`}
+              aria-pressed={sameNumberHighlight}
+              className={sameNumberHighlight ? 'active' : ''}
+              data-tooltip="選択中と同じ数字を盤面上で強調表示する"
+              onClick={() => {
+                setSameNumberHighlight((current) => !current)
+                playEffect('select')
+              }}
+              title="同じ数字のハイライト"
+              type="button"
+            >
+              <Highlighter aria-hidden="true" />
+            </button>
+            <button
               aria-label="ヒント"
               data-tooltip="選択中の空欄に正解を1つ入力する"
               onClick={revealHint}
@@ -518,6 +542,16 @@ export function SudokuGame() {
         onPrimary={() => startNewGame(session.puzzle.difficulty)}
         open={resultOpen}
         primaryLabel="次の問題"
+        shareAction={(
+          <GameShareButton
+            buttonLabel="同じ問題を共有"
+            className="result-share-button"
+            difficulty={session.puzzle.difficulty}
+            game="sudoku"
+            seed={session.puzzle.seed}
+            title="おーとまちっく数独"
+          />
+        )}
         stats={[
           { label: 'TIME', value: formatElapsedTime(session.elapsedSeconds) },
           { label: 'DIFFICULTY', value: DIFFICULTY_LABELS[session.puzzle.difficulty] },
@@ -526,6 +560,19 @@ export function SudokuGame() {
         ]}
         subtitle="一意解の盤面を完成しました。"
         title="正解です"
+      />
+      <ConfirmationModal
+        confirmLabel={`${pendingDifficulty ? DIFFICULTY_LABELS[pendingDifficulty] : ''}で開始`}
+        message="現在の進行状況は終了し、新しい問題を生成します。この操作は元に戻せません。"
+        onCancel={() => setPendingDifficulty(null)}
+        onConfirm={() => {
+          if (pendingDifficulty) {
+            startNewGame(pendingDifficulty)
+          }
+          setPendingDifficulty(null)
+        }}
+        open={pendingDifficulty !== null}
+        title="難易度を変更しますか？"
       />
     </section>
   )
