@@ -1427,12 +1427,12 @@ main {
   }
 
   .sudoku-workspace .segmented-control {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .sudoku-workspace .segmented-control button {
-    padding-inline: 4px;
-    font-size: 10px;
+    padding-inline: 1px;
+    font-size: 9px;
     white-space: nowrap;
   }
 
@@ -2559,6 +2559,33 @@ button:active,
   background: color-mix(in srgb, var(--sun) 15%, var(--paper-strong));
 }
 
+.sudoku-difficulty-table {
+  display: grid;
+  margin: 22px 0;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.sudoku-difficulty-table > div {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.8fr) minmax(96px, 0.8fr) minmax(170px, 2fr);
+}
+
+.sudoku-difficulty-table span,
+.sudoku-difficulty-table strong {
+  padding: 10px 12px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sudoku-difficulty-table strong {
+  color: var(--paper-strong);
+  background: var(--forest);
+  font-family: var(--font-display);
+}
+
 .guide-section aside svg {
   width: 24px;
   height: 24px;
@@ -2659,6 +2686,9 @@ button:active,
   .countdown-overlay span { font-size: 94px; }
   .tool-row { grid-template-columns: repeat(5, 1fr); }
   .guide-hero h1 { font-size: 40px; }
+  .sudoku-difficulty-table > div { grid-template-columns: 64px 72px minmax(0, 1fr); }
+  .sudoku-difficulty-table span,
+  .sudoku-difficulty-table strong { padding: 8px 6px; font-size: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

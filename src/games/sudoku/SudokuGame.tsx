@@ -44,6 +44,7 @@ interface SudokuSession {
 }
 
 const DIFFICULTY_LABELS: Record<SudokuDifficulty, string> = {
+  beginner: '入門',
   easy: 'やさしい',
   normal: 'ふつう',
   hard: 'むずかしい',
@@ -55,7 +56,7 @@ function nextSeed(): number {
 }
 
 function isSudokuDifficulty(value: string | null): value is SudokuDifficulty {
-  return value === 'easy' || value === 'normal' || value === 'hard' || value === 'expert'
+  return value === 'beginner' || value === 'easy' || value === 'normal' || value === 'hard' || value === 'expert'
 }
 
 function createSession(

@@ -5,11 +5,18 @@ import {
   generateSudoku,
   getCandidates,
   getConflicts,
+  isSolvableWithNakedSingles,
   isSudokuSolved,
   type SudokuDifficulty,
 } from './engine'
 
-const difficulties: SudokuDifficulty[] = ['easy', 'normal', 'hard', 'expert']
+const difficulties: SudokuDifficulty[] = [
+  'beginner',
+  'easy',
+  'normal',
+  'hard',
+  'expert',
+]
 
 describe('Sudoku engine', () => {
   test.each(difficulties)('generates a unique %s puzzle', (difficulty) => {
@@ -47,5 +54,29 @@ describe('Sudoku engine', () => {
 
     expect(expert.analysis.clueCount).toBeLessThan(easy.analysis.clueCount)
     expect(expert.analysis.rating).toBeGreaterThan(easy.analysis.rating)
+  })
+
+  test('makes beginner easier than easy and solvable with basic singles', () => {
+    const beginner = generateSudoku('beginner', 20260812)
+    const easy = generateSudoku('easy', 20260812)
+
+    expect(beginner.analysis.clueCount).toBeGreaterThan(easy.analysis.clueCount)
+    expect(beginner.analysis.rating).toBeLessThan(easy.analysis.rating)
+    expect(isSolvableWithNakedSingles(beginner.puzzle)).toBe(true)
+    expect(beginner.analysis.unresolvedAfterLogic).toBe(0)
+    expect(beginner.analysis.guessBranches).toBe(0)
+  })
+
+  test('keeps beginner puzzles below easy across representative seeds', () => {
+    for (let seed = 0; seed < 100; seed += 1) {
+      const beginner = generateSudoku('beginner', seed)
+      const easy = generateSudoku('easy', seed)
+
+      expect(beginner.analysis.clueCount).toBeGreaterThanOrEqual(50)
+      expect(beginner.analysis.rating).toBeLessThan(easy.analysis.rating)
+      expect(isSolvableWithNakedSingles(beginner.puzzle)).toBe(true)
+      expect(beginner.analysis.unresolvedAfterLogic).toBe(0)
+      expect(beginner.analysis.guessBranches).toBe(0)
+    }
   })
 })

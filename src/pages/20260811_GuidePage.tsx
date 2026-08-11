@@ -51,6 +51,21 @@ export function GuidePage({ onBack }: { onBack: () => void }) {
           <p>
             数字パッドの左クリックは「確定（大きい数字）」と「メモ（小さい数字）」を常設の切替で選べます。右クリックは選択中のモードに関係なくメモ入力になり、確定値が置かれたマスでも小さい候補へ置き換えられます。
           </p>
+          <h3>旧版の3レベルを出発点に、5段階へ作り直す</h3>
+          <p>
+            2006年のiアプリと2011年のAndroid版は、完成盤から数字をランダムに抜き、LEVEL1は候補列挙、LEVEL2は行・列・3 × 3ブロック内の隠れシングル相当、LEVEL3は確定候補の伝播まで使って、その数字を抜いてよいか判定していました。LEVEL4とLEVEL5はメニューだけで未実装でした。
+          </p>
+          <div className="sudoku-difficulty-table" role="table" aria-label="現行数独の難易度生成方法">
+            <div role="row"><strong role="columnheader">難易度</strong><strong role="columnheader">目標手掛かり</strong><strong role="columnheader">生成候補と採用条件</strong></div>
+            <div role="row"><span role="cell">入門</span><span role="cell">50</span><span role="cell">1候補／裸のシングル完走を保証</span></div>
+            <div role="row"><span role="cell">やさしい</span><span role="cell">42</span><span role="cell">1候補／一意解を採用</span></div>
+            <div role="row"><span role="cell">ふつう</span><span role="cell">34</span><span role="cell">2候補／rating最大</span></div>
+            <div role="row"><span role="cell">むずかしい</span><span role="cell">28</span><span role="cell">3候補／rating最大</span></div>
+            <div role="row"><span role="cell">エキスパート</span><span role="cell">24</span><span role="cell">6候補／rating最大</span></div>
+          </div>
+          <p>
+            現行版は全段階で解の個数を最大2個まで探索し、一意解だけを採用します。ratingは空欄数、裸／隠れシングル後の未解決数、バックトラック探索の分岐数とノード数から算出します。特にエキスパートは旧版に対応レベルがなく、複数候補から探索複雑度の高い問題を選ぶ2026年版独自の難易度です。
+          </p>
           <aside>
             <BrainCircuit aria-hidden="true" />
             <div><strong>発展案</strong><span>Algorithm X / Dancing Links で一意解を高速判定し、回転対称な最小問題や Killer Sudoku の和制約へ拡張できます。</span></div>

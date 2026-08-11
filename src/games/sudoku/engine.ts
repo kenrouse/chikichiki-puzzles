@@ -1,4 +1,4 @@
-export type SudokuDifficulty = 'easy' | 'normal' | 'hard' | 'expert'
+export type SudokuDifficulty = 'beginner' | 'easy' | 'normal' | 'hard' | 'expert'
 
 export interface SudokuAnalysis {
   clueCount: number
@@ -19,6 +19,7 @@ export interface SudokuPuzzle {
 
 const ALL_DIGITS_MASK = 0b1111111110
 const CLUE_TARGETS: Record<SudokuDifficulty, number> = {
+  beginner: 50,
   easy: 42,
   normal: 34,
   hard: 28,
@@ -26,6 +27,7 @@ const CLUE_TARGETS: Record<SudokuDifficulty, number> = {
 }
 
 const GENERATION_ATTEMPTS: Record<SudokuDifficulty, number> = {
+  beginner: 1,
   easy: 1,
   normal: 2,
   hard: 3,
@@ -133,7 +135,7 @@ function createUnits(): number[][] {
 
 const SUDOKU_UNITS = createUnits()
 
-function findLogicalPlacement(board: readonly number[]): { index: number; value: number } | null {
+function findNakedSinglePlacement(board: readonly number[]): { index: number; value: number } | null {
   for (let index = 0; index < board.length; index += 1) {
     if (board[index] !== 0) {
       continue
@@ -142,6 +144,14 @@ function findLogicalPlacement(board: readonly number[]): { index: number; value:
     if (bitCount(mask) === 1) {
       return { index, value: maskToDigit(mask) }
     }
+  }
+  return null
+}
+
+function findLogicalPlacement(board: readonly number[]): { index: number; value: number } | null {
+  const nakedSingle = findNakedSinglePlacement(board)
+  if (nakedSingle) {
+    return nakedSingle
   }
 
   for (const unit of SUDOKU_UNITS) {
@@ -157,6 +167,18 @@ function findLogicalPlacement(board: readonly number[]): { index: number; value:
     }
   }
   return null
+}
+
+export function isSolvableWithNakedSingles(board: readonly number[]): boolean {
+  const working = [...board]
+  while (true) {
+    const placement = findNakedSinglePlacement(working)
+    if (!placement) {
+      break
+    }
+    working[placement.index] = placement.value
+  }
+  return working.every((value) => value !== 0)
 }
 
 function measureSearch(board: readonly number[]): { guessBranches: number; searchNodes: number } {
@@ -313,7 +335,10 @@ function generateSudokuCandidate(
     }
     const previousValue = puzzle[index]
     puzzle[index] = 0
-    if (countSolutions(puzzle) !== 1) {
+    const solutionCount = countSolutions(puzzle)
+    const remainsBeginnerFriendly =
+      difficulty !== 'beginner' || isSolvableWithNakedSingles(puzzle)
+    if (solutionCount !== 1 || !remainsBeginnerFriendly) {
       puzzle[index] = previousValue
     } else {
       clueCount -= 1
@@ -341,7 +366,7 @@ export function generateSudoku(
         (seed + Math.imul(attempt, 0x9e3779b1)) >>> 0,
       ),
   )
-  const selected = difficulty === 'easy'
+  const selected = difficulty === 'beginner' || difficulty === 'easy'
     ? candidates.reduce((best, candidate) =>
       candidate.analysis.rating < best.analysis.rating ? candidate : best,
     )
