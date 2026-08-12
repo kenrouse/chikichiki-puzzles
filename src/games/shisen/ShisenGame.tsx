@@ -46,8 +46,8 @@ interface ShisenSession {
 }
 const SHISEN_COPY = {
   ja: {
-    begin: (difficulty: string) => `${difficulty}で開始`,
-    confirmMessage: '現在の配牌と進行状況は終了し、新しい配牌を生成します。この操作は元に戻せません。',
+    generateAndStart: (difficulty: string) => `${difficulty}を生成して開始`,
+    confirmMessage: '選択した難易度で新しい配牌を生成し、3秒カウントダウン後に開始します。現在の配牌と進行状況は終了し、この操作は元に戻せません。',
     confirmTitle: '難易度を変更しますか？',
     difficulties: { relaxed: 'ゆったり', standard: '標準', expert: '達人' },
     difficulty: '難易度',
@@ -89,8 +89,8 @@ const SHISEN_COPY = {
     zoomTooltip: '盤面と牌の模様を同じ比率で拡大する',
   },
   en: {
-    begin: (difficulty: string) => `Start ${difficulty}`,
-    confirmMessage: 'Your current layout and progress will end and a new layout will be generated. This cannot be undone.',
+    generateAndStart: (difficulty: string) => `Generate and start ${difficulty}`,
+    confirmMessage: 'Generate a new layout at the selected difficulty and start it after a three-second countdown. Your current layout and progress will end and this cannot be undone.',
     confirmTitle: 'Change difficulty?',
     difficulties: { relaxed: 'Relaxed', standard: 'Standard', expert: 'Expert' },
     difficulty: 'Difficulty',
@@ -215,8 +215,6 @@ export function ShisenGame() {
     beginCountdown,
     countdown,
     isCountingDown,
-    restartCountdown,
-    waitingToStart,
   } = useGameCountdown(
     session.elapsedSeconds === 0 && session.board.status === 'playing',
   )
@@ -254,7 +252,7 @@ export function ShisenGame() {
       block: 'center',
       inline: 'nearest',
     })
-    window.setTimeout(beginCountdown, 0)
+    beginCountdown()
   }
 
   function fitBoardToScreen(): void {
@@ -333,16 +331,12 @@ export function ShisenGame() {
     setResultOpen(false)
     setShowInitialBoard(false)
     setZoom(1)
-    restartCountdown()
+    beginGame()
   }
 
   function requestDifficultyChange(difficulty: ShisenDifficulty): void {
     if (difficulty !== board.difficulty) {
-      if (waitingToStart) {
-        startNewGame(difficulty)
-      } else {
-        setPendingDifficulty(difficulty)
-      }
+      setPendingDifficulty(difficulty)
     }
   }
 
@@ -462,9 +456,7 @@ export function ShisenGame() {
   return (
     <section className={`game-workspace shisen-workspace ${isCountingDown ? 'game-paused' : ''}`} aria-labelledby="shisen-title">
       <CountdownOverlay
-        onStart={beginGame}
         value={countdown}
-        waitingToStart={waitingToStart}
       />
       <header className="game-heading">
         <div>
@@ -686,7 +678,9 @@ export function ShisenGame() {
         title={copy.titleClear}
       />
       <ConfirmationModal
-        confirmLabel={copy.begin(pendingDifficulty ? copy.difficulties[pendingDifficulty] : '')}
+        confirmLabel={copy.generateAndStart(
+          pendingDifficulty ? copy.difficulties[pendingDifficulty] : '',
+        )}
         message={copy.confirmMessage}
         onCancel={() => setPendingDifficulty(null)}
         onConfirm={() => {

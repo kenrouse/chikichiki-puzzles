@@ -93,10 +93,10 @@ const MINE_COPY = {
     actualMine: '赤い爆弾',
     actualMineDescription: '実際の地雷',
     actualMineTooltip: 'ゲーム終了時に赤く表示される、実際に配置された地雷',
-    begin: (difficulty: string) => `${difficulty}で開始`,
+    generateAndStart: (difficulty: string) => `${difficulty}を生成して開始`,
     cleared: 'すべての安全なマスを開きました。',
     classic: 'オリジナル同様、局面によって推測が必要です。',
-    confirmMessage: '現在の盤面とスコアは終了し、新しい地雷原を生成します。この操作は元に戻せません。',
+    confirmMessage: '選択した難易度で新しい地雷原を生成し、3秒カウントダウン後に開始します。現在の盤面とスコアは終了し、この操作は元に戻せません。',
     confirmTitle: '難易度を変更しますか？',
     detonated: '黄色い輪',
     detonatedDescription: '踏んだ地雷',
@@ -152,10 +152,10 @@ const MINE_COPY = {
     actualMine: 'Red bomb',
     actualMineDescription: 'Actual mine',
     actualMineTooltip: 'A mine that was actually placed, shown in red after the game ends',
-    begin: (difficulty: string) => `Start ${difficulty}`,
+    generateAndStart: (difficulty: string) => `Generate and start ${difficulty}`,
     cleared: 'You opened every safe cell.',
     classic: 'Like the original game, some positions may require a guess.',
-    confirmMessage: 'Your current board and score will end and a new minefield will be generated. This cannot be undone.',
+    confirmMessage: 'Generate a new minefield at the selected difficulty and start it after a three-second countdown. Your current board and score will end and this cannot be undone.',
     confirmTitle: 'Change difficulty?',
     detonated: 'Yellow ring',
     detonatedDescription: 'Mine you hit',
@@ -320,8 +320,6 @@ export function MinesweeperGame() {
     beginCountdown,
     countdown,
     isCountingDown,
-    restartCountdown,
-    waitingToStart,
   } = useGameCountdown(
     session.elapsedSeconds === 0 &&
       (session.board.status === 'ready' || session.firstMoveIndex !== null),
@@ -349,7 +347,7 @@ export function MinesweeperGame() {
       block: 'center',
       inline: 'nearest',
     })
-    window.setTimeout(beginCountdown, 0)
+    beginCountdown()
   }
 
   function fitBoardToScreen(): void {
@@ -436,16 +434,12 @@ export function MinesweeperGame() {
     setSession(createSession(difficulty, undefined, null, generationMode))
     setCascade(null)
     setResultOpen(false)
-    restartCountdown()
+    beginGame()
   }
 
   function requestDifficultyChange(difficulty: MineDifficulty): void {
     if (difficulty !== session.difficulty) {
-      if (waitingToStart) {
-        startNewGame(difficulty)
-      } else {
-        setPendingDifficulty(difficulty)
-      }
+      setPendingDifficulty(difficulty)
     }
   }
 
@@ -628,9 +622,7 @@ export function MinesweeperGame() {
   return (
     <section className={`game-workspace mines-workspace ${isCountingDown ? 'game-paused' : ''}`} aria-labelledby="mines-title">
       <CountdownOverlay
-        onStart={beginGame}
         value={countdown}
-        waitingToStart={waitingToStart}
       />
       <header className="game-heading">
         <div>
@@ -918,7 +910,9 @@ export function MinesweeperGame() {
         title={board.status === 'lost' ? 'GAME OVER' : copy.victoryTitle}
       />
       <ConfirmationModal
-        confirmLabel={copy.begin(pendingDifficulty ? copy.difficulties[pendingDifficulty] : '')}
+        confirmLabel={copy.generateAndStart(
+          pendingDifficulty ? copy.difficulties[pendingDifficulty] : '',
+        )}
         message={copy.confirmMessage}
         onCancel={() => setPendingDifficulty(null)}
         onConfirm={() => {

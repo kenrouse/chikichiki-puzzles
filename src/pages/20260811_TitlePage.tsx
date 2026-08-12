@@ -9,7 +9,7 @@ const TITLE_COPY = {
   ja: {
     capabilities: 'アプリの特徴',
     games: [
-      { description: 'クラシック・対称・Killerの3タイプと、高度手筋で評価する5段階の数字パズル。', id: 'sudoku' as const, icon: Grid3X3, label: 'おーとまちっく数独', years: '2006 / 2011' },
+      { description: '一意解と高度手筋で評価する、5段階の数字パズル。', id: 'sudoku' as const, icon: Grid3X3, label: 'おーとまちっく数独', years: '2006 / 2011' },
       { description: '推測不要とクラシックを選べる、連鎖スコア付き地雷原。', id: 'minesweeper' as const, icon: Bomb, label: 'ちきちきまいんすいーぱ。', years: '2007' },
       { description: '2回まで曲がる線で同じ牌を結ぶ、完走可能な配牌。', id: 'shisen' as const, icon: LayoutGrid, label: '四川省', years: '2009' },
     ],
@@ -21,7 +21,7 @@ const TITLE_COPY = {
   en: {
     capabilities: 'App features',
     games: [
-      { description: 'Five human-rated levels across Classic, Symmetric, and Killer puzzles.', id: 'sudoku' as const, icon: Grid3X3, label: 'Automatic Sudoku', years: '2006 / 2011' },
+      { description: 'Five levels of uniquely solvable puzzles rated with human techniques.', id: 'sudoku' as const, icon: Grid3X3, label: 'Automatic Sudoku', years: '2006 / 2011' },
       { description: 'A cascading-score minefield with guess-free and classic modes.', id: 'minesweeper' as const, icon: Bomb, label: 'Chikichiki Minesweeper', years: '2007' },
       { description: 'Solvable tile layouts connected by paths with at most two turns.', id: 'shisen' as const, icon: LayoutGrid, label: 'Shisen-Sho', years: '2009' },
     ],

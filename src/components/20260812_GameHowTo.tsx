@@ -79,9 +79,10 @@ const HOW_TO_COPY = {
         ],
         title: '論理的な攻略手順',
         variants: [
-          'クラシック: 完成盤から手掛かりを1つずつ抜き、一意解を保つ従来型です。',
-          '対称: 180度回転で対応する2マスを組として抜き、どの残存ペアもさらに抜けないペア最小問題です。',
-          'キラー: 最初から表示された数字に加え、破線で囲まれた空欄ケージ内の数字を重複させず、左上の合計値へ合わせます。ケージは連結しており、与え数字と合計制約を合わせて一意解になります。',
+          'クラシック: 完成盤から手掛かりを1つずつ抜き、一意解を保つ従来型です。行、列、3 × 3 ブロックの標準ルールだけで解きます。難易度が上がると、目標の手掛かり数が50、42、34、28、24と減ります。',
+          '対称: 180 度回転で対応する2マスを組として抜き、どの残存ペアもさらに抜けないペア最小問題です。解くルールはクラシックと同じです。入門とやさしいでは論理手筋で解けることを確認し、上位難易度では生成候補を増やして rating の高い盤面を選びます。',
+          'キラー: 標準ルールに加え、破線で囲まれた空欄ケージ内で数字を重複させず、左上の合計値へ合わせます。難易度が上がると与え数字が減り、最大ケージサイズが1マスから5マスまで増えるため、合計から候補を絞る場面が増えます。',
+          '難易度表示は各タイプ内の相対的な目安です。クラシック／対称とキラーでは rating の計算方法が異なるため、タイプをまたいだ数値の大小は難しさの直接比較には使えません。',
         ],
         variantsTitle: '問題タイプ別の追加ルール',
       },
@@ -156,9 +157,10 @@ const HOW_TO_COPY = {
         ],
         title: 'A logical solving sequence',
         variants: [
-          'Classic: removes individual clues from a solved board while preserving one solution.',
-          'Symmetric: removes 180° rotational pairs until no remaining pair can be removed without losing uniqueness.',
-          'Killer: use the supplied digits, then fill each connected dashed cage without repeats so it reaches the upper-left sum. The givens and cage sums together define one solution.',
+          'Classic: removes individual clues from a solved board while preserving one solution. You solve it with only the standard row, column, and 3 × 3 box rules. Higher difficulties reduce the target clue counts through 50, 42, 34, 28, and 24.',
+          'Symmetric: removes 180° rotational pairs until no remaining pair can be removed without losing uniqueness. Its solving rules are the same as Classic. Beginner and Easy verify logical solvability, while higher difficulties consider more generated candidates and select a higher-rated board.',
+          'Killer: adds connected dashed cages to the standard rules. Digits cannot repeat within a cage and must reach its upper-left sum. Higher difficulties supply fewer digits and increase the maximum cage size from one to five cells, requiring more deductions from sums.',
+          'Difficulty is relative within each puzzle type. Classic/Symmetric and Killer use different rating formulas, so their rating numbers do not directly compare difficulty across types.',
         ],
         variantsTitle: 'Additional rules by puzzle type',
       },
@@ -169,7 +171,13 @@ const HOW_TO_COPY = {
   },
 } as const
 
-export function GameHowTo({ game }: { game: HowToGameId }) {
+export function GameHowTo({
+  game,
+  showSudokuPreviewDetails = false,
+}: {
+  game: HowToGameId
+  showSudokuPreviewDetails?: boolean
+}) {
   const { preferences } = useAppExperience()
   const copy = getLocalizedCopy(preferences.language, HOW_TO_COPY)
   const gameCopy = copy[game]
@@ -253,12 +261,14 @@ export function GameHowTo({ game }: { game: HowToGameId }) {
                 <strong>{gameCopy.strategy.generatorTitle}</strong>
                 <p>{gameCopy.strategy.generator}</p>
               </aside>
-              <div className="sudoku-variant-help">
-                <h3>{gameCopy.strategy.variantsTitle}</h3>
-                <ul>
-                  {gameCopy.strategy.variants.map((variant) => <li key={variant}>{variant}</li>)}
-                </ul>
-              </div>
+              {showSudokuPreviewDetails ? (
+                <div className="sudoku-variant-help">
+                  <h3>{gameCopy.strategy.variantsTitle}</h3>
+                  <ul>
+                    {gameCopy.strategy.variants.map((variant) => <li key={variant}>{variant}</li>)}
+                  </ul>
+                </div>
+              ) : null}
             </section>
           ) : null}
         </div>

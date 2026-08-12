@@ -52,6 +52,7 @@
 .focus-mode .game-heading,
 .focus-mode .difficulty-row > .segmented-control,
 .focus-mode .sudoku-variant-row,
+.focus-mode .sudoku-preview-active,
 .focus-mode .game-how-to,
 .focus-mode .game-how-to-restore,
 .focus-mode .mine-mode-row,
@@ -958,8 +959,20 @@ main {
 }
 
 .sudoku-variant-row > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--muted);
   font: 700 9px/1 var(--font-display);
+}
+
+.sudoku-variant-row > span em {
+  padding: 4px 5px;
+  border-radius: 3px;
+  color: var(--forest);
+  background: color-mix(in srgb, var(--sun) 42%, var(--paper-strong));
+  font-size: 7px;
+  font-style: normal;
 }
 
 .sudoku-variant-row .segmented-control button {
@@ -971,6 +984,34 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sudoku-preview-active {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -8px 0 20px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--sun) 62%, var(--line));
+  background: color-mix(in srgb, var(--sun) 13%, var(--paper-strong));
+}
+
+.sudoku-preview-active > span {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sudoku-preview-active strong {
+  color: var(--ink);
+  font: 700 11px/1.3 var(--font-display);
+}
+
+.sudoku-preview-active .command-button {
+  flex: 0 0 auto;
 }
 
 .sudoku-analysis-row {
@@ -2374,6 +2415,17 @@ button:active,
   flex: 1;
 }
 
+.preview-feature-toggle > span {
+  display: grid;
+  gap: 4px;
+}
+
+.preview-feature-toggle small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
 .sound-toggle input {
   position: absolute;
   opacity: 0;
@@ -2438,7 +2490,7 @@ button:active,
   display: grid;
   place-items: center;
   color: #fffdf7;
-  background: color-mix(in srgb, var(--forest) 82%, rgba(0, 0, 0, 0.72));
+  background: color-mix(in srgb, var(--forest) 82%, #000 18%);
   pointer-events: all;
 }
 
@@ -2457,51 +2509,6 @@ button:active,
   margin-top: 22px;
   color: var(--sun);
   font: 700 13px/1 var(--font-display);
-}
-
-.game-start-prompt {
-  gap: 18px;
-  max-width: min(420px, calc(100vw - 32px));
-  animation: none !important;
-  text-align: center;
-}
-
-.game-start-gate {
-  display: grid;
-  place-items: center;
-  margin-bottom: 20px;
-  padding: 18px;
-  border: 1px solid var(--line-strong);
-  background: color-mix(in srgb, var(--mint) 20%, var(--paper-strong));
-}
-
-.game-start-gate .game-start-prompt small {
-  color: var(--muted);
-}
-
-.game-start-prompt button {
-  min-width: 190px;
-  min-height: 58px;
-  padding: 12px 28px;
-  border: 2px solid var(--sun);
-  border-radius: 6px;
-  color: var(--forest);
-  background: var(--sun);
-  cursor: pointer;
-  font: 800 18px/1 var(--font-display);
-}
-
-.game-start-prompt button:hover,
-.game-start-prompt button:focus-visible {
-  color: var(--paper-strong);
-  background: var(--coral);
-}
-
-.game-start-prompt small {
-  max-width: 360px;
-  margin-top: 0;
-  color: var(--paper-strong);
-  font: 600 12px/1.6 var(--font-sans);
 }
 
 @keyframes countdown-pop {
@@ -2559,51 +2566,6 @@ button:active,
   animation: grade-pop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
 }
 
-@keyframes grade-pop {
-  from { opacity: 0; transform: scale(0.3) rotate(-16deg); }
-  to { opacity: 1; transform: scale(1) rotate(-3deg); }
-}
-
-.result-subtitle {
-  display: block;
-  margin: 8px 0 24px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.result-modal dl {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-  margin: 0 0 24px;
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
-}
-
-.result-modal dl > div {
-  display: grid;
-  gap: 6px;
-  padding: 12px 8px;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.result-modal dt {
-  color: var(--muted);
-  font: 700 8px/1 var(--font-display);
-}
-
-.result-modal dd {
-  margin: 0;
-  color: var(--ink);
-  font: 700 17px/1 var(--font-display);
-}
-
-.result-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-}
 
 .result-actions > button:not(.command-button) {
   min-height: 40px;
@@ -3103,6 +3065,8 @@ button:active,
   .sudoku-variant-row .segmented-control { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sudoku-variant-row .segmented-control button { min-width: 0; padding-inline: 5px; }
   .sudoku-variant-row .segmented-control small { max-width: none; font-size: 7px; }
+  .sudoku-preview-active { align-items: stretch; flex-direction: column; gap: 10px; }
+  .sudoku-preview-active .command-button { align-self: flex-start; }
   .sudoku-analysis-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sudoku-analysis-row span { min-width: 0; padding-inline: 6px; }
   .sudoku-analysis-row strong { overflow-wrap: anywhere; }

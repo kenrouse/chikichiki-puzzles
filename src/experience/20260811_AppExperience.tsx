@@ -10,6 +10,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import {
+  FlaskConical,
   Languages,
   Music2,
   Palette,
@@ -50,6 +51,7 @@ interface AppPreferences {
   pointerMarkerEnabled: boolean
   sfxEnabled: boolean
   sfxVolume: number
+  sudokuPreviewVariantsEnabled: boolean
   tooltipsEnabled: boolean
 }
 
@@ -66,6 +68,7 @@ interface ExperienceContextValue {
   setPointerMarkerEnabled: (enabled: boolean) => void
   setSfxEnabled: (enabled: boolean) => void
   setSfxVolume: (volume: number) => void
+  setSudokuPreviewVariantsEnabled: (enabled: boolean) => void
   setTooltipsEnabled: (enabled: boolean) => void
 }
 
@@ -134,16 +137,17 @@ const EXPERIENCE_COPY = {
     penStabilization: 'ペン入力を安定化',
     penTooltip: 'ペンでゲームを操作している間、ゲーム内ボタン上のスクロールを抑止します',
     pointerMarker: 'マウス位置の丸いマーカー',
+    previewFeatures: 'プレビュー機能',
     resultReopen: '成績を見る',
-    settings: '表示とサウンド',
-    settingsLabel: '表示・言語・サウンド設定',
-    settingsTooltip: '言語・テーマ・BGM・効果音を設定',
+    settings: '設定',
+    settingsLabel: 'アプリ設定',
+    settingsTooltip: '言語・テーマ・サウンド・プレビュー機能を設定',
     sfx: '効果音',
     sfxPlaying: '操作と結果の効果音',
     sfxVolume: '効果音量',
     tooltips: '操作要素のツールチップ',
-    startGame: 'ゲーム開始',
-    startPrompt: '盤面を中央に表示してカウントダウンを始めます',
+    sudokuPreviewDescription: '評価中のキラーと対称を問題タイプに表示します。',
+    sudokuPreviewVariants: '数独のプレビュー問題',
     viewBoard: '盤面を見る',
     volume: '音量',
   },
@@ -166,16 +170,17 @@ const EXPERIENCE_COPY = {
     penStabilization: 'Stabilize pen input',
     penTooltip: 'Prevents browser scrolling over game controls while you are using a pen',
     pointerMarker: 'Pointer position marker',
+    previewFeatures: 'Preview features',
     resultReopen: 'View results',
-    settings: 'Display and sound',
-    settingsLabel: 'Display, language, and sound settings',
-    settingsTooltip: 'Configure language, theme, music, and sound effects',
+    settings: 'Settings',
+    settingsLabel: 'App settings',
+    settingsTooltip: 'Configure language, theme, sound, and preview features',
     sfx: 'Sound effects',
     sfxPlaying: 'Sounds for actions and results',
     sfxVolume: 'Sound effect volume',
     tooltips: 'Tooltips for controls',
-    startGame: 'Start game',
-    startPrompt: 'Center the board and begin the countdown',
+    sudokuPreviewDescription: 'Shows the Killer and Symmetric puzzle types currently under evaluation.',
+    sudokuPreviewVariants: 'Sudoku preview puzzles',
     viewBoard: 'View board',
     volume: 'Volume',
   },
@@ -204,10 +209,12 @@ function readInitialPreferences(): AppPreferences {
     pointerMarkerEnabled: false,
     sfxEnabled: true,
     sfxVolume: 0.58,
+    sudokuPreviewVariantsEnabled: false,
     tooltipsEnabled: true,
   }
   try {
     const currentPreferences =
+      window.localStorage.getItem('chikichiki:preferences:v7') ??
       window.localStorage.getItem('chikichiki:preferences:v6') ??
       window.localStorage.getItem('chikichiki:preferences:v5') ??
       window.localStorage.getItem('chikichiki:preferences:v4')
@@ -286,7 +293,7 @@ function createBgmTone(
 
 export function AppExperienceProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useStoredState<AppPreferences>(
-    'chikichiki:preferences:v7',
+    'chikichiki:preferences:v8',
     readInitialPreferences,
   )
   const [audioRevision, setAudioRevision] = useState(0)
@@ -488,6 +495,8 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
           updatePreferences({ pointerMarkerEnabled }),
         setSfxEnabled: (sfxEnabled) => updatePreferences({ sfxEnabled }),
         setSfxVolume: (sfxVolume) => updatePreferences({ sfxVolume }),
+        setSudokuPreviewVariantsEnabled: (sudokuPreviewVariantsEnabled) =>
+          updatePreferences({ sudokuPreviewVariantsEnabled }),
         setTooltipsEnabled: (tooltipsEnabled) =>
           updatePreferences({ tooltipsEnabled }),
       }}
@@ -656,6 +665,23 @@ export function SettingsPanel({
               value={experience.preferences.sfxVolume}
             />
             <output>{Math.round(experience.preferences.sfxVolume * 100)}%</output>
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend><FlaskConical aria-hidden="true" /> {copy.previewFeatures}</legend>
+          <label className="sound-toggle preview-feature-toggle">
+            <span>
+              {copy.sudokuPreviewVariants}
+              <small>{copy.sudokuPreviewDescription}</small>
+            </span>
+            <input
+              checked={experience.preferences.sudokuPreviewVariantsEnabled}
+              onChange={(event) =>
+                experience.setSudokuPreviewVariantsEnabled(event.target.checked)
+              }
+              type="checkbox"
+            />
+            <i aria-hidden="true" />
           </label>
         </fieldset>
         <fieldset>
@@ -880,10 +906,11 @@ function GlobalTooltip() {
   )
 }
 
-export function useGameCountdown(initiallyWaiting: boolean) {
+export function useGameCountdown(initiallyCountingDown: boolean) {
   const { playEffect } = useAppExperience()
-  const [countdown, setCountdown] = useState<number | null>(null)
-  const [waitingToStart, setWaitingToStart] = useState(initiallyWaiting)
+  const [countdown, setCountdown] = useState<number | null>(
+    initiallyCountingDown ? 3 : null,
+  )
 
   useEffect(() => {
     if (countdown === null) {
@@ -903,46 +930,23 @@ export function useGameCountdown(initiallyWaiting: boolean) {
   }, [countdown, playEffect])
 
   const beginCountdown = useCallback(() => {
-    setWaitingToStart(false)
     setCountdown(3)
-  }, [])
-  const restartCountdown = useCallback(() => {
-    setCountdown(null)
-    setWaitingToStart(true)
   }, [])
 
   return {
     beginCountdown,
     countdown,
-    isCountingDown: waitingToStart || countdown !== null,
-    restartCountdown,
-    waitingToStart,
+    isCountingDown: countdown !== null,
   }
 }
 
 export function CountdownOverlay({
-  onStart,
   value,
-  waitingToStart,
 }: {
-  onStart: () => void
   value: number | null
-  waitingToStart: boolean
 }) {
-  const { preferences } = useAppExperience()
-  const copy = getLocalizedCopy(preferences.language, EXPERIENCE_COPY)
-  if (!waitingToStart && value === null) {
+  if (value === null) {
     return null
-  }
-  if (waitingToStart) {
-    return (
-      <div aria-live="polite" className="game-start-gate">
-        <div className="game-start-prompt">
-          <button onClick={onStart} type="button">{copy.startGame}</button>
-          <small>{copy.startPrompt}</small>
-        </div>
-      </div>
-    )
   }
   return (
     <div aria-live="assertive" className="countdown-overlay">

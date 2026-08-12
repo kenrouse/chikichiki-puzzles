@@ -34,6 +34,7 @@ import {
 } from './engine'
 import type { HumanTechnique } from './humanSolver'
 import type { KillerCage } from './killer'
+import { getSudokuPreviewAccess } from './20260812_previewAccess'
 
 interface SudokuHistoryEntry {
   notes: number[]
@@ -65,12 +66,12 @@ interface KillerCellInfo {
 
 const SUDOKU_COPY = {
   ja: {
-    begin: (difficulty: string, variant: string) => `${difficulty}・${variant}で開始`,
+    generateAndStart: (difficulty: string, variant: string) => `${difficulty}・${variant}を生成して開始`,
     board: '数独盤面',
     checkMessage: '赤い数字が重複しています。',
     cageTechnique: 'ケージ合計',
     clearMessage: '正解です。やったね！',
-    confirmMessage: '現在の進行状況は終了し、新しい問題を生成します。この操作は元に戻せません。',
+    confirmMessage: '選択した設定で新しい問題を生成し、3秒カウントダウン後に開始します。現在の進行状況は終了し、この操作は元に戻せません。',
     confirmTitle: '問題設定を変更しますか？',
     correctTitle: '正解です',
     difficulties: { beginner: '入門', easy: 'やさしい', normal: 'ふつう', hard: 'むずかしい', expert: 'エキスパート' },
@@ -101,11 +102,15 @@ const SUDOKU_COPY = {
     nextPuzzle: '次の問題',
     note: 'メモ',
     noteMessage: '候補の数字を複数記録できます。',
+    preview: 'プレビュー',
+    previewActive: (variant: string) => `${variant}のプレビュー問題をプレイ中`,
+    previewDisabledMessage: 'この問題は継続できます。次の問題はクラシックになります。',
     rankActionsMessage: (grade: string, maximum: number, reduction: number, excess: number) => `${grade}ランクは合計ペナルティ${maximum}秒以下です。次回は${reduction}秒分改善してください。現在と同じヒント・ミス数では、それだけで上限を${excess}秒超えるため、回数も減らす必要があります。`,
     rankHighestHeading: '最高ランク S',
     rankHighestMessage: 'Sランク達成です。合計ペナルティを299秒以下に抑えました。',
     rankNextHeading: (grade: string) => `次は${grade}ランク`,
     rankNextMessage: (grade: string, maximum: number, reduction: number, time: string) => `${grade}ランクは合計ペナルティ${maximum}秒以下です。次回は${reduction}秒分改善し、同じヒント・ミス数なら${time}以内のクリアが目安です。`,
+    returnToClassic: 'クラシックに戻る',
     sharePuzzle: '同じ問題を共有',
     subtitle: '一意解の盤面を完成しました。',
     title: 'おーとまちっく数独',
@@ -126,19 +131,19 @@ const SUDOKU_COPY = {
     undoTooltip: '直前の数字またはメモを元に戻す',
     variant: '問題タイプ',
     variantDescriptions: {
-      classic: '従来型の一意解問題',
-      killer: 'ケージの合計値も使う',
-      symmetric: '180度回転対称・ペア最小',
+      classic: '標準ルール',
+      killer: '標準ルール＋ケージ合計',
+      symmetric: '標準ルール・180度対称配置',
     },
     variants: { classic: 'クラシック', killer: 'キラー', symmetric: '対称' },
   },
   en: {
-    begin: (difficulty: string, variant: string) => `Start ${difficulty} · ${variant}`,
+    generateAndStart: (difficulty: string, variant: string) => `Generate and start ${difficulty} · ${variant}`,
     board: 'Sudoku board',
     checkMessage: 'The red numbers are duplicated.',
     cageTechnique: 'Cage sums',
     clearMessage: 'Correct. Well done!',
-    confirmMessage: 'Your current progress will end and a new puzzle will be generated. This cannot be undone.',
+    confirmMessage: 'Generate a new puzzle with these settings and start it after a three-second countdown. Your current progress will end and this cannot be undone.',
     confirmTitle: 'Change puzzle settings?',
     correctTitle: 'Puzzle solved',
     difficulties: { beginner: 'Beginner', easy: 'Easy', normal: 'Normal', hard: 'Hard', expert: 'Expert' },
@@ -169,11 +174,15 @@ const SUDOKU_COPY = {
     nextPuzzle: 'Next puzzle',
     note: 'Notes',
     noteMessage: 'You can record multiple candidate numbers.',
+    preview: 'Preview',
+    previewActive: (variant: string) => `Playing a ${variant} preview puzzle`,
+    previewDisabledMessage: 'You can finish this puzzle. The next puzzle will use Classic.',
     rankActionsMessage: (grade: string, maximum: number, reduction: number, excess: number) => `Grade ${grade} requires a total penalty of ${maximum} seconds or less. Improve by ${reduction} seconds next time. The same hint and mistake penalties alone exceed the target by ${excess} seconds, so reduce those actions too.`,
     rankHighestHeading: 'Top grade S',
     rankHighestMessage: 'You earned grade S by keeping the total penalty at 299 seconds or less.',
     rankNextHeading: (grade: string) => `Next: grade ${grade}`,
     rankNextMessage: (grade: string, maximum: number, reduction: number, time: string) => `Grade ${grade} requires a total penalty of ${maximum} seconds or less. Improve by ${reduction} seconds next time; with the same hints and mistakes, aim to finish within ${time}.`,
+    returnToClassic: 'Return to Classic',
     sharePuzzle: 'Share this puzzle',
     subtitle: 'You completed a uniquely solvable puzzle.',
     title: 'Automatic Sudoku',
@@ -194,9 +203,9 @@ const SUDOKU_COPY = {
     undoTooltip: 'Undo the previous answer or note',
     variant: 'Puzzle type',
     variantDescriptions: {
-      classic: 'Traditional uniquely solvable puzzle',
-      killer: 'Also use cage sums',
-      symmetric: '180° rotational, pair-minimal',
+      classic: 'Standard rules',
+      killer: 'Standard rules + cage sums',
+      symmetric: 'Standard rules, 180° clue symmetry',
     },
     variants: { classic: 'Classic', killer: 'Killer', symmetric: 'Symmetric' },
   },
@@ -322,8 +331,6 @@ export function SudokuGame() {
     beginCountdown,
     countdown,
     isCountingDown,
-    restartCountdown,
-    waitingToStart,
   } = useGameCountdown(
     session.elapsedSeconds === 0 && session.status === 'playing',
   )
@@ -346,6 +353,10 @@ export function SudokuGame() {
   const techniqueLabel = currentVariant === 'killer'
     ? copy.cageTechnique
     : copy.techniques[hardestTechnique]
+  const previewAccess = getSudokuPreviewAccess(
+    currentVariant,
+    preferences.sudokuPreviewVariantsEnabled,
+  )
   const rank = calculateSudokuRank(
     session.elapsedSeconds,
     session.hintsUsed,
@@ -380,7 +391,7 @@ export function SudokuGame() {
       block: 'center',
       inline: 'nearest',
     })
-    window.setTimeout(beginCountdown, 0)
+    beginCountdown()
   }
 
   function selectCell(index: number): void {
@@ -417,28 +428,20 @@ export function SudokuGame() {
     setPlacementGuide(false)
     setSameNumberHighlight(false)
     setResultOpen(false)
-    restartCountdown()
     const firstEmpty = next.puzzle.puzzle.findIndex((value) => value === 0)
     selectCell(firstEmpty >= 0 ? firstEmpty : 0)
+    beginGame()
   }
 
   function requestDifficultyChange(difficulty: SudokuDifficulty): void {
     if (difficulty !== session.puzzle.difficulty) {
-      if (waitingToStart) {
-        startNewGame(difficulty, currentVariant)
-      } else {
-        setPendingSetup({ difficulty, variant: currentVariant })
-      }
+      setPendingSetup({ difficulty, variant: previewAccess.nextPuzzleVariant })
     }
   }
 
   function requestVariantChange(variant: SudokuVariant): void {
     if (variant !== currentVariant) {
-      if (waitingToStart) {
-        startNewGame(session.puzzle.difficulty, variant)
-      } else {
-        setPendingSetup({ difficulty: session.puzzle.difficulty, variant })
-      }
+      setPendingSetup({ difficulty: session.puzzle.difficulty, variant })
     }
   }
 
@@ -600,9 +603,7 @@ export function SudokuGame() {
   return (
     <section className={`game-workspace sudoku-workspace ${isCountingDown ? 'game-paused' : ''}`} aria-labelledby="sudoku-title">
       <CountdownOverlay
-        onStart={beginGame}
         value={countdown}
-        waitingToStart={waitingToStart}
       />
       <header className="game-heading">
         <div>
@@ -645,7 +646,10 @@ export function SudokuGame() {
           />
           <button
             className="command-button"
-            onClick={() => startNewGame(session.puzzle.difficulty, currentVariant)}
+            onClick={() => startNewGame(
+              session.puzzle.difficulty,
+              previewAccess.nextPuzzleVariant,
+            )}
             type="button"
           >
             <RefreshCw aria-hidden="true" size={17} /> {copy.newPuzzle}
@@ -653,23 +657,42 @@ export function SudokuGame() {
         </div>
       </div>
 
-      <div className="sudoku-variant-row">
-        <span>{copy.variant}</span>
-        <div className="segmented-control" aria-label={copy.variant}>
-          {(Object.keys(copy.variants) as SudokuVariant[]).map((variant) => (
-            <button
-              aria-pressed={currentVariant === variant}
-              className={currentVariant === variant ? 'active' : ''}
-              key={variant}
-              onClick={() => requestVariantChange(variant)}
-              type="button"
-            >
-              {copy.variants[variant]}
-              <small>{copy.variantDescriptions[variant]}</small>
-            </button>
-          ))}
+      {previewAccess.showVariantSelector ? (
+        <div className="sudoku-variant-row">
+          <span>{copy.variant}<em>{copy.preview}</em></span>
+          <div className="segmented-control" aria-label={`${copy.variant} ${copy.preview}`}>
+            {(Object.keys(copy.variants) as SudokuVariant[]).map((variant) => (
+              <button
+                aria-pressed={currentVariant === variant}
+                className={currentVariant === variant ? 'active' : ''}
+                key={variant}
+                onClick={() => requestVariantChange(variant)}
+                type="button"
+              >
+                {copy.variants[variant]}
+                <small>{copy.variantDescriptions[variant]}</small>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : previewAccess.showCompatibilityBanner ? (
+        <div className="sudoku-preview-active" role="status">
+          <span>
+            <strong>{copy.previewActive(copy.variants[currentVariant])}</strong>
+            {copy.previewDisabledMessage}
+          </span>
+          <button
+            className="command-button"
+            onClick={() => setPendingSetup({
+              difficulty: session.puzzle.difficulty,
+              variant: 'classic',
+            })}
+            type="button"
+          >
+            {copy.returnToClassic}
+          </button>
+        </div>
+      ) : null}
 
       <div className="sudoku-analysis-row" aria-label={copy.technique}>
         <span><strong>{session.puzzle.analysis.rating}</strong> RATING</span>
@@ -685,7 +708,10 @@ export function SudokuGame() {
         </span>
       </div>
 
-      <GameHowTo game="sudoku" />
+      <GameHowTo
+        game="sudoku"
+        showSudokuPreviewDetails={previewAccess.showPreviewDetails}
+      />
 
       <div className="sudoku-layout" ref={boardFocusRef}>
         <div className="sudoku-board" role="grid" aria-label={copy.board}>
@@ -893,7 +919,10 @@ export function SudokuGame() {
       <ResultModal
         grade={rank.grade}
         onClose={() => setResultOpen(false)}
-        onPrimary={() => startNewGame(session.puzzle.difficulty, currentVariant)}
+        onPrimary={() => startNewGame(
+          session.puzzle.difficulty,
+          previewAccess.nextPuzzleVariant,
+        )}
         open={resultOpen}
         primaryLabel={copy.nextPuzzle}
         rankProgress={rankProgress}
@@ -923,7 +952,7 @@ export function SudokuGame() {
         title={copy.correctTitle}
       />
       <ConfirmationModal
-        confirmLabel={copy.begin(
+        confirmLabel={copy.generateAndStart(
           pendingSetup ? copy.difficulties[pendingSetup.difficulty] : '',
           pendingSetup ? copy.variants[pendingSetup.variant] : '',
         )}
