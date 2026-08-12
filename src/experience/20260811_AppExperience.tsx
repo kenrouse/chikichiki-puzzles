@@ -80,6 +80,10 @@ interface ResultModalProps {
   onPrimary: () => void
   open: boolean
   primaryLabel: string
+  rankProgress?: {
+    heading: string
+    message: string
+  }
   shareAction?: ReactNode
   stats: ResultStat[]
   subtitle: string
@@ -138,6 +142,8 @@ const EXPERIENCE_COPY = {
     sfxPlaying: '操作と結果の効果音',
     sfxVolume: '効果音量',
     tooltips: '操作要素のツールチップ',
+    startGame: 'ゲーム開始',
+    startPrompt: '盤面を中央に表示してカウントダウンを始めます',
     viewBoard: '盤面を見る',
     volume: '音量',
   },
@@ -168,6 +174,8 @@ const EXPERIENCE_COPY = {
     sfxPlaying: 'Sounds for actions and results',
     sfxVolume: 'Sound effect volume',
     tooltips: 'Tooltips for controls',
+    startGame: 'Start game',
+    startPrompt: 'Center the board and begin the countdown',
     viewBoard: 'View board',
     volume: 'Volume',
   },
@@ -872,9 +880,10 @@ function GlobalTooltip() {
   )
 }
 
-export function useGameCountdown(initiallyActive: boolean) {
+export function useGameCountdown(initiallyWaiting: boolean) {
   const { playEffect } = useAppExperience()
-  const [countdown, setCountdown] = useState<number | null>(initiallyActive ? 3 : null)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const [waitingToStart, setWaitingToStart] = useState(initiallyWaiting)
 
   useEffect(() => {
     if (countdown === null) {
@@ -882,24 +891,58 @@ export function useGameCountdown(initiallyActive: boolean) {
     }
     playEffect(countdown === 0 ? 'start' : 'countdown')
     const timer = window.setTimeout(
-      () => setCountdown((current) => (current === null || current === 0 ? null : current - 1)),
+      () => setCountdown((current) => {
+        if (current === null || current === 0) {
+          return null
+        }
+        return current - 1
+      }),
       countdown === 0 ? 620 : 720,
     )
     return () => window.clearTimeout(timer)
   }, [countdown, playEffect])
 
-  const restartCountdown = useCallback(() => setCountdown(3), [])
+  const beginCountdown = useCallback(() => {
+    setWaitingToStart(false)
+    setCountdown(3)
+  }, [])
+  const restartCountdown = useCallback(() => {
+    setCountdown(null)
+    setWaitingToStart(true)
+  }, [])
 
   return {
+    beginCountdown,
     countdown,
-    isCountingDown: countdown !== null,
+    isCountingDown: waitingToStart || countdown !== null,
     restartCountdown,
+    waitingToStart,
   }
 }
 
-export function CountdownOverlay({ value }: { value: number | null }) {
-  if (value === null) {
+export function CountdownOverlay({
+  onStart,
+  value,
+  waitingToStart,
+}: {
+  onStart: () => void
+  value: number | null
+  waitingToStart: boolean
+}) {
+  const { preferences } = useAppExperience()
+  const copy = getLocalizedCopy(preferences.language, EXPERIENCE_COPY)
+  if (!waitingToStart && value === null) {
     return null
+  }
+  if (waitingToStart) {
+    return (
+      <div aria-live="polite" className="game-start-gate">
+        <div className="game-start-prompt">
+          <button onClick={onStart} type="button">{copy.startGame}</button>
+          <small>{copy.startPrompt}</small>
+        </div>
+      </div>
+    )
   }
   return (
     <div aria-live="assertive" className="countdown-overlay">
@@ -961,6 +1004,7 @@ export function ResultModal({
   onPrimary,
   open,
   primaryLabel,
+  rankProgress,
   shareAction,
   stats,
   subtitle,
@@ -993,6 +1037,12 @@ export function ResultModal({
             </div>
           ))}
         </dl>
+        {rankProgress ? (
+          <div className="result-rank-progress">
+            <strong>{rankProgress.heading}</strong>
+            <span>{rankProgress.message}</span>
+          </div>
+        ) : null}
         <div className="result-actions">
           <button className="command-button" onClick={onPrimary} type="button">{primaryLabel}</button>
           <button onClick={onClose} type="button">{copy.viewBoard}</button>

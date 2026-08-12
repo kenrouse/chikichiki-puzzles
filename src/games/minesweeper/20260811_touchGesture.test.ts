@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
   isTouchSwipe,
+  resolveMineTapAction,
   supportsLongPress,
   TOUCH_SWIPE_THRESHOLD,
 } from './20260811_touchGesture'
@@ -10,6 +11,14 @@ describe('Minesweeper touch gesture', () => {
     expect(supportsLongPress('touch')).toBe(true)
     expect(supportsLongPress('pen')).toBe(true)
     expect(supportsLongPress('mouse')).toBe(false)
+  })
+
+  test('applies mark mode only to touch and pen taps', () => {
+    expect(resolveMineTapAction('touch', 'mark', false)).toBe('mark')
+    expect(resolveMineTapAction('pen', 'mark', false)).toBe('mark')
+    expect(resolveMineTapAction('mouse', 'mark', false)).toBe('open')
+    expect(resolveMineTapAction('touch', 'open', false)).toBe('open')
+    expect(resolveMineTapAction('touch', 'mark', true)).toBe('open')
   })
 
   test('treats small finger movement as a tap', () => {

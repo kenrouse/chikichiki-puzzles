@@ -9,7 +9,9 @@ import {
   Bomb,
   CircleQuestionMark,
   Flag,
+  MousePointer2,
   RefreshCw,
+  Scan,
   ShieldCheck,
   ZoomIn,
   ZoomOut,
@@ -25,9 +27,15 @@ import {
   useGameCountdown,
 } from '../../experience/20260811_AppExperience'
 import { formatElapsedTime, useStoredState } from '../../lib/storage'
+import { calculateMinesweeperRank } from '../20260812_ranking'
+import { fitGridCellSize } from '../20260812_viewSizing'
 import { GameShareButton } from '../../share/20260811_GameShare'
 import { readSharedGameParameters } from '../../share/20260811_seededGameUrl'
-import { isTouchSwipe, supportsLongPress } from './20260811_touchGesture'
+import {
+  isTouchSwipe,
+  resolveMineTapAction,
+  supportsLongPress,
+} from './20260811_touchGesture'
 import { updateBestTime } from './20260811_records'
 import {
   calculateMineCascadeScore,
@@ -54,6 +62,7 @@ interface MineSession {
 
 type BestTimes = Record<MineDifficulty, number | null>
 type BestScores = Record<MineDifficulty, number>
+type MineTouchMode = 'mark' | 'open'
 
 interface CascadeReaction {
   id: number
@@ -99,6 +108,8 @@ const MINE_COPY = {
     flagTooltip: '自分で置いた地雷候補。色は正解または不正解を示しません',
     gameInfo: 'ゲーム情報',
     gameOver: '地雷を開きました。新しい盤面でもう一度。',
+    fitBoard: '画面に合わせる',
+    fitBoardTooltip: '盤面全体が現在の画面に収まるセルサイズへ調整',
     guessFree: '推測不要',
     guessFreeDescription: '論理だけで解ける盤面',
     guessFreeLabel: '推測不要モード',
@@ -106,12 +117,20 @@ const MINE_COPY = {
     guessFreeTooltip: 'ONでは公開された数字だけで完走できる盤面を生成します。OFFでは初手安全のみのクラシック配置に戻ります',
     legend: '記号と色の説明',
     lostSubtitle: '地雷を開きました。スコアは次の挑戦へ持ち越されません。',
+    markMode: 'マーク',
+    markModeDescription: 'タップで旗 → ? → 解除',
     newBoard: '新しい盤面',
     nextBoard: '次の盤面',
     openedCells: (cells: number, points: number, intensity: number) => `${cells}マスを開いて${points}点獲得しました。倍率は${intensity}です。`,
     playing: '右クリックまたは長押しで、旗 → ? → 解除。数字を再度押すと周囲を開きます。',
     questionDescription: '判断保留',
     questionTooltip: '地雷か判断できないマスの仮マーク。MINE残数には数えません',
+    rankClearHeading: 'まず盤面をクリア',
+    rankClearMessage: 'ランクは安全なマスをすべて開いたときに確定します。地雷を避けてクリアしてください。',
+    rankHighestHeading: '最高ランク S',
+    rankHighestMessage: 'Sランク達成です。安全マス数に対するスコア効率3.8以上を記録しました。',
+    rankNextHeading: (grade: string) => `次は${grade}ランク`,
+    rankNextMessage: (grade: string, target: string, needed: string) => `${grade}ランクには${target}点以上が必要です。あと${needed}点です。ランクはスコア効率で決まり、時間はベストタイムとして別に記録されます。`,
     readyClassic: '最初に開くマスと、その周囲には地雷がありません。',
     readyGuessFree: '最初の一手から、推測せずに完走できる盤面を生成します。',
     retry: 'もう一度',
@@ -120,6 +139,9 @@ const MINE_COPY = {
     shareDisabled: '最初のマスを開くと、同じ地雷配置を共有できます',
     shrink: '縮小',
     shrinkTooltip: '盤面を縮小',
+    tapAction: 'タッチ／ペンのタップ操作',
+    openMode: '開く',
+    openModeDescription: 'タップでマスを開く',
     title: 'ちきちきまいんすいーぱ。',
     victorySubtitle: 'すべての安全なマスを開きました。',
     victoryTitle: '地雷原を制覇',
@@ -145,6 +167,8 @@ const MINE_COPY = {
     flagTooltip: 'A suspected mine you marked. Its color does not indicate whether it is correct.',
     gameInfo: 'Game information',
     gameOver: 'You opened a mine. Try another board.',
+    fitBoard: 'Fit to screen',
+    fitBoardTooltip: 'Adjust cell size so the full board fits the current screen',
     guessFree: 'Guess-free',
     guessFreeDescription: 'Solvable by logic alone',
     guessFreeLabel: 'Guess-free mode',
@@ -152,12 +176,20 @@ const MINE_COPY = {
     guessFreeTooltip: 'On generates boards solvable from visible numbers alone. Off returns to a classic layout that only guarantees a safe first move.',
     legend: 'Symbols and colors',
     lostSubtitle: 'You opened a mine. Your score does not carry over to the next attempt.',
+    markMode: 'Mark',
+    markModeDescription: 'Tap for Flag → ? → Clear',
     newBoard: 'New board',
     nextBoard: 'Next board',
     openedCells: (cells: number, points: number, intensity: number) => `Opened ${cells} cells for ${points} points at a ×${intensity} multiplier.`,
     playing: 'Right-click or hold for Flag → ? → Clear. Press an open number again to open its neighbors.',
     questionDescription: 'Undecided',
     questionTooltip: 'A temporary mark for an uncertain cell. It is not counted in the remaining mines.',
+    rankClearHeading: 'Clear the board first',
+    rankClearMessage: 'A grade is awarded only after every safe cell is open. Avoid the mines and finish the board.',
+    rankHighestHeading: 'Top grade S',
+    rankHighestMessage: 'You earned grade S with a score efficiency of at least 3.8 per safe-cell baseline.',
+    rankNextHeading: (grade: string) => `Next: grade ${grade}`,
+    rankNextMessage: (grade: string, target: string, needed: string) => `Grade ${grade} requires at least ${target} points. You need ${needed} more. Grade uses score efficiency; time is tracked separately as your best time.`,
     readyClassic: 'Your first cell and all eight neighbors are safe.',
     readyGuessFree: 'Your first move creates a board that can be completed without guessing.',
     retry: 'Try again',
@@ -166,6 +198,9 @@ const MINE_COPY = {
     shareDisabled: 'Open the first cell before sharing this exact mine layout',
     shrink: 'Zoom out',
     shrinkTooltip: 'Make the board smaller',
+    tapAction: 'Touch and pen tap action',
+    openMode: 'Open',
+    openModeDescription: 'Tap to open a cell',
     title: 'Chikichiki Minesweeper',
     victorySubtitle: 'You opened every safe cell.',
     victoryTitle: 'Minefield cleared',
@@ -229,15 +264,6 @@ function createInitialSession(): MineSession {
   )
 }
 
-function getMineGrade(session: MineSession): string {
-  const safeCells = session.board.width * session.board.height - session.board.mineCount
-  const efficiency = session.score / Math.max(1, safeCells * 10)
-  if (efficiency >= 3.8) return 'S'
-  if (efficiency >= 2.7) return 'A'
-  if (efficiency >= 1.7) return 'B'
-  return 'C'
-}
-
 function describeCell(board: MineBoard, index: number, language: AppLanguage): string {
   const row = Math.floor(index / board.width) + 1
   const column = (index % board.width) + 1
@@ -267,6 +293,10 @@ export function MinesweeperGame() {
     () => ({ beginner: 0, intermediate: 0, expert: 0 }),
   )
   const [cellSize, setCellSize] = useState(28)
+  const [touchMode, setTouchMode] = useStoredState<MineTouchMode>(
+    'chikichiki:minesweeper:touch-mode:v1',
+    () => 'open',
+  )
   const [pendingDifficulty, setPendingDifficulty] = useState<MineDifficulty | null>(null)
   const [cascade, setCascade] = useState<CascadeReaction | null>(null)
   const [resultOpen, setResultOpen] = useState(
@@ -281,15 +311,66 @@ export function MinesweeperGame() {
   const suppressContextMenuTimer = useRef<number | null>(null)
   const cascadeTimer = useRef<number | null>(null)
   const cascadeId = useRef(0)
+  const boardFocusRef = useRef<HTMLDivElement>(null)
+  const lastPointerType = useRef('mouse')
   const { playEffect, preferences } = useAppExperience()
   const copy = getLocalizedCopy(preferences.language, MINE_COPY)
   const locale = preferences.language === 'ja' ? 'ja-JP' : 'en-US'
-  const { countdown, isCountingDown, restartCountdown } = useGameCountdown(
+  const {
+    beginCountdown,
+    countdown,
+    isCountingDown,
+    restartCountdown,
+    waitingToStart,
+  } = useGameCountdown(
     session.elapsedSeconds === 0 &&
       (session.board.status === 'ready' || session.firstMoveIndex !== null),
   )
   const board = session.board
   const flags = countFlags(board)
+  const safeCells = board.width * board.height - board.mineCount
+  const rank = calculateMinesweeperRank(session.score, safeCells)
+  const rankProgress = board.status === 'lost'
+    ? { heading: copy.rankClearHeading, message: copy.rankClearMessage }
+    : rank.nextGrade === null || rank.nextMinimum === null
+      ? { heading: copy.rankHighestHeading, message: copy.rankHighestMessage }
+      : {
+        heading: copy.rankNextHeading(rank.nextGrade),
+        message: copy.rankNextMessage(
+          rank.nextGrade,
+          rank.nextMinimum.toLocaleString(locale),
+          rank.pointsNeeded.toLocaleString(locale),
+        ),
+      }
+
+  function beginGame(): void {
+    boardFocusRef.current?.scrollIntoView({
+      behavior: 'auto',
+      block: 'center',
+      inline: 'nearest',
+    })
+    window.setTimeout(beginCountdown, 0)
+  }
+
+  function fitBoardToScreen(): void {
+    const viewport = boardFocusRef.current
+    if (!viewport) {
+      return
+    }
+    const availableWidth = Math.max(1, viewport.clientWidth - 4)
+    const availableHeight = Math.max(180, window.innerHeight - 120)
+    setCellSize(fitGridCellSize(
+      availableWidth,
+      availableHeight,
+      board.width,
+      board.height,
+      6,
+      40,
+    ))
+    window.requestAnimationFrame(() => {
+      viewport.scrollTo({ left: 0, top: 0 })
+    })
+  }
 
   useEffect(() => {
     if (board.status !== 'playing' || isCountingDown) {
@@ -360,7 +441,11 @@ export function MinesweeperGame() {
 
   function requestDifficultyChange(difficulty: MineDifficulty): void {
     if (difficulty !== session.difficulty) {
-      setPendingDifficulty(difficulty)
+      if (waitingToStart) {
+        startNewGame(difficulty)
+      } else {
+        setPendingDifficulty(difficulty)
+      }
     }
   }
 
@@ -409,6 +494,22 @@ export function MinesweeperGame() {
       playEffect('clear')
       setResultOpen(true)
     }
+  }
+
+  function handleCellClick(index: number, keyboardClick: boolean): void {
+    if (suppressTouchClickIndex.current === index) {
+      suppressTouchClickIndex.current = null
+      return
+    }
+    if (longPressedIndex.current === index) {
+      longPressedIndex.current = null
+      return
+    }
+    if (resolveMineTapAction(lastPointerType.current, touchMode, keyboardClick) === 'mark') {
+      cycleMark(index)
+      return
+    }
+    reveal(index)
   }
 
   function cycleMark(index: number): void {
@@ -526,7 +627,11 @@ export function MinesweeperGame() {
 
   return (
     <section className={`game-workspace mines-workspace ${isCountingDown ? 'game-paused' : ''}`} aria-labelledby="mines-title">
-      <CountdownOverlay value={countdown} />
+      <CountdownOverlay
+        onStart={beginGame}
+        value={countdown}
+        waitingToStart={waitingToStart}
+      />
       <header className="game-heading">
         <div>
           <p className="eyebrow">2007 / COMPLETED EDITION</p>
@@ -584,9 +689,9 @@ export function MinesweeperGame() {
           />
           <button
             aria-label={copy.shrink}
-            disabled={cellSize <= 20}
+            disabled={cellSize <= 6}
             data-tooltip={copy.shrinkTooltip}
-            onClick={() => setCellSize((current) => Math.max(20, current - 4))}
+            onClick={() => setCellSize((current) => Math.max(6, current - 4))}
             type="button"
           >
             <ZoomOut aria-hidden="true" />
@@ -601,6 +706,14 @@ export function MinesweeperGame() {
             <ZoomIn aria-hidden="true" />
           </button>
           <button
+            aria-label={copy.fitBoard}
+            data-tooltip={copy.fitBoardTooltip}
+            onClick={fitBoardToScreen}
+            type="button"
+          >
+            <Scan aria-hidden="true" />
+          </button>
+          <button
             className="command-button"
             onClick={() => startNewGame(session.difficulty)}
             type="button"
@@ -611,6 +724,30 @@ export function MinesweeperGame() {
       </div>
 
       <GameHowTo game="minesweeper" />
+
+      <div className="mine-touch-mode" aria-label={copy.tapAction} role="group">
+        <span>{copy.tapAction}</span>
+        <div>
+          <button
+            aria-pressed={touchMode === 'open'}
+            className={touchMode === 'open' ? 'active' : ''}
+            onClick={() => setTouchMode('open')}
+            type="button"
+          >
+            <MousePointer2 aria-hidden="true" />
+            <span><strong>{copy.openMode}</strong><small>{copy.openModeDescription}</small></span>
+          </button>
+          <button
+            aria-pressed={touchMode === 'mark'}
+            className={touchMode === 'mark' ? 'active' : ''}
+            onClick={() => setTouchMode('mark')}
+            type="button"
+          >
+            <Flag aria-hidden="true" />
+            <span><strong>{copy.markMode}</strong><small>{copy.markModeDescription}</small></span>
+          </button>
+        </div>
+      </div>
 
       <div className="mine-mode-row">
         <label
@@ -659,7 +796,7 @@ export function MinesweeperGame() {
         </span>
       </div>
 
-      <div className="minefield-scroll" tabIndex={0} aria-label={copy.scrollBoard}>
+      <div className="minefield-scroll" tabIndex={0} aria-label={copy.scrollBoard} ref={boardFocusRef}>
         <div aria-live="polite" className="sr-only">
           {cascade
             ? copy.openedCells(cascade.openedCells, cascade.points, cascade.intensity)
@@ -676,7 +813,7 @@ export function MinesweeperGame() {
               className={`mine-cell ${cell.state} adjacent-${cell.adjacent} ${cell.state === 'open' && cell.mine ? 'actual-mine' : ''} ${board.detonatedIndex === index ? 'detonated' : ''}`}
               data-tooltip-disabled="true"
               key={index}
-              onClick={() => reveal(index)}
+              onClick={(event) => handleCellClick(index, event.detail === 0)}
               onContextMenu={(event) => {
                 event.preventDefault()
                 if (suppressContextMenuIndex.current === index) {
@@ -685,7 +822,10 @@ export function MinesweeperGame() {
                 cycleMark(index)
               }}
               onPointerCancel={finishTouchGesture}
-              onPointerDown={(event) => beginLongPress(event, index)}
+              onPointerDown={(event) => {
+                lastPointerType.current = event.pointerType
+                beginLongPress(event, index)
+              }}
               onPointerMove={trackTouchSwipe}
               onPointerUp={finishTouchGesture}
               role="gridcell"
@@ -738,11 +878,12 @@ export function MinesweeperGame() {
         <ResultReopenButton onClick={() => setResultOpen(true)} />
       ) : null}
       <ResultModal
-        grade={board.status === 'lost' ? 'X' : getMineGrade(session)}
+        grade={board.status === 'lost' ? 'X' : rank.grade}
         onClose={() => setResultOpen(false)}
         onPrimary={() => startNewGame(session.difficulty)}
         open={resultOpen}
         primaryLabel={board.status === 'lost' ? copy.retry : copy.nextBoard}
+        rankProgress={rankProgress}
         shareAction={(
           <GameShareButton
             buttonLabel={copy.shareBoard}

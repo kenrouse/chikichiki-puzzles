@@ -19,34 +19,54 @@ const HOW_TO_COPY = {
     detailsHeading: '操作とクリア条件',
     hide: '遊び方を隠す',
     minesweeper: {
+      rank: {
+        intro: 'クリア時のランクは、スコア ÷（安全マス数 × 10）の効率で決まります。時間はランクに影響せず、ベストタイムとして別に記録されます。連鎖で多くのマスを一度に開くほど上位を狙えます。',
+        items: [
+          'S: 効率3.8以上。初級3,420点／中級12,920点／上級48,640点以上',
+          'A: 効率2.7以上。初級2,430点／中級9,180点／上級34,560点以上',
+          'B: 効率1.7以上。初級1,530点／中級5,780点／上級21,760点以上',
+          'C: 効率1.7未満。小さく開き続けるより、空白の連鎖を大きく伸ばすと改善できます',
+        ],
+        title: 'ランクの決まり方',
+      },
       steps: [
         '数字は、そのマスの周囲8マスにある地雷の数です。数字を手掛かりに安全なマスを開きます。',
-        '地雷だと思うマスは右クリック、またはタッチ／ペンの長押しで「旗」にします。もう一度操作すると「?」、さらに操作すると解除されます。',
-        '開いた数字をもう一度押すと、周囲の旗が数字と同じ数のとき、残りの周囲マスをまとめて開きます。地雷以外をすべて開けばクリアです。',
+        'タッチ／ペンでは「開く／マーク」を選びます。マークは旗 → ? → 解除の順に切り替わります。右クリックと長押しもマークのショートカットです。',
+        '開いた数字をもう一度押すと、周囲の旗が数字と同じ数のとき、残りをまとめて開きます。「画面に合わせる」で盤面全体を表示でき、地雷以外をすべて開けばクリアです。',
       ],
       summary: '地雷を踏まないように、数字を手掛かりに安全なマスをすべて開くゲームです。最初に開くマスと周囲8マスは必ず安全です。',
-      tips: ['数字は周囲8マスの地雷数', '右クリック／長押しで旗', '安全なマスをすべて開けばクリア'],
+      tips: ['数字は周囲8マスの地雷数', 'タッチは開く／マークを選択', '安全なマスをすべて開けばクリア'],
       title: 'マインスイーパの遊び方',
     },
     restore: '遊び方',
     shisen: {
+      rank: {
+        intro: 'ランク用ペナルティは「クリア秒数＋シャッフル回数 × 120秒」です。ヒントはランクに影響しません。シャッフル1回を減らすことは、2分短縮するのと同じ効果です。',
+        items: ['S: 359秒以下', 'A: 360〜719秒', 'B: 720〜1,199秒', 'C: 1,200秒以上'],
+        title: 'ランクの決まり方',
+      },
       steps: [
         '同じ模様の牌を2枚、順番に選びます。牌の間を線で結べれば、その2枚を取り除けます。',
         '線は空いている場所を通り、曲がれるのは2回までです。盤面の外側を回る経路も使えます。',
-        '結べる組が見つからないときはヒントを使えます。行き詰まった場合は残りの牌を、必ず解ける配置へ並べ替えられます。すべての牌を取り除けばクリアです。',
+        '「画面に合わせる」で配牌全体を表示できます。組が見つからないときはヒント、行き詰まった場合は必ず解ける配置への並べ替えを使えます。すべての牌を取り除けばクリアです。',
       ],
       summary: '同じ模様の牌を、2回以内に曲がる線で結んで消すゲームです。線はほかの牌を通り抜けられません。',
       tips: ['同じ牌を2枚選ぶ', '線が曲がれるのは2回まで', 'すべての牌を消せばクリア'],
       title: '四川省の遊び方',
     },
     sudoku: {
+      rank: {
+        intro: 'ランク用ペナルティは「クリア秒数＋ヒント回数 × 90秒＋ミス回数 × 35秒」です。問題タイプや難易度は式を変えません。時間短縮だけでなく、ヒントとミスを減らすことが上位への近道です。',
+        items: ['S: 299秒以下', 'A: 300〜599秒', 'B: 600〜999秒', 'C: 1,000秒以上'],
+        title: 'ランクの決まり方',
+      },
       steps: [
         '空いているマスを選び、数字パッドから1〜9を入力します。最初から表示されている数字は変更できません。',
         '各行、各列、太線で囲まれた3 × 3のブロックに、1〜9を1回ずつ入れます。同じ数字が重なると赤く表示されます。',
         '候補を残したいときは「メモ」へ切り替えます。ガイド、同じ数字の強調、ヒント、元に戻す操作も利用できます。すべて正しく埋めればクリアです。',
       ],
       strategy: {
-        generator: '生成器は完成盤から数字を1つずつ抜き、そのたびに解が1つだけかを探索します。「入門」はさらに、候補が1つのマスを埋め続けるだけで完走できることを検査しています。「やさしい」以上は一意解を保証しますが、特定の人間向け手筋だけで解ける保証はありません。ふつう・むずかしい・エキスパートは、それぞれ2・3・6個の候補から、裸のシングルと隠れシングルを適用した後の未解決数や、探索の分岐数・ノード数を含むratingが高い問題を選びます。',
+        generator: '一意解判定はAlgorithm X / Dancing Linksで行います。「入門」は候補が1つのマスを埋め続けるだけで完走できることも検査します。難易度分析は裸／隠れシングル、ロック候補、裸／隠れペア、X-Wing、XY-Wing、単純連鎖を順に適用し、最難手筋、使用回数、候補削除数、残った探索量をratingへ反映します。ふつう・むずかしい・エキスパートは、それぞれ2・3・6個の候補からratingが高い問題を選びます。',
         generatorTitle: '問題生成との関係',
         intro: '当てずっぽうで数字を置く前に、次の順序で候補を狭めます。数字を1つ置くたびに盤面の条件が変わるので、最初から同じ順序を繰り返すのが基本です。',
         steps: [
@@ -54,10 +74,16 @@ const HOW_TO_COPY = {
           '裸のシングルを探す: あるマスの候補が1つだけなら、その数字で確定です。「入門」は、この手順を繰り返すだけで必ず最後まで解けます。',
           '隠れシングルを探す: 1つのマスに候補が複数あっても、行・列・ブロックの中で、ある数字を置ける場所がそのマスしかなければ確定です。現行の難易度分析も、裸のシングルの次にこの手筋を使います。',
           '確定した場所の周囲を見直す: 数字を置いた行、列、ブロックからその候補を消し、新しく生まれた裸／隠れシングルを探します。盤面全体を何度も眺めるより、変化した3つの範囲から確認すると効率的です。',
-          '基本手筋で止まったら候補同士を見る: 同じ2候補が2マスだけを占めるペアや、ブロック内の候補が1つの行・列に限定されるロック候補を探すと、ほかのマスから候補を消せます。ただし、現行の生成器は特定の高度手筋で解けることまでは分類・保証していません。',
+          '基本手筋で止まったら候補同士を見る: 同じ2候補が2マスだけを占めるペア、ブロック内の候補が1つの行・列に限定されるロック候補、X-Wing、XY-Wing、単純連鎖の順で候補を消します。現行の難易度分析も同じ順序で手筋を分類します。',
           '矛盾を避けて進める: 一意解は保証されていますが、上位難易度のratingにはバックトラック探索量も含まれます。これは難しさを測るための内部指標で、攻略時に推測を勧めるものではありません。論理的な候補消去で進め、必要な場合だけヒントを使います。',
         ],
         title: '論理的な攻略手順',
+        variants: [
+          'クラシック: 完成盤から手掛かりを1つずつ抜き、一意解を保つ従来型です。',
+          '対称: 180度回転で対応する2マスを組として抜き、どの残存ペアもさらに抜けないペア最小問題です。',
+          'キラー: 最初から表示された数字に加え、破線で囲まれた空欄ケージ内の数字を重複させず、左上の合計値へ合わせます。ケージは連結しており、与え数字と合計制約を合わせて一意解になります。',
+        ],
+        variantsTitle: '問題タイプ別の追加ルール',
       },
       summary: '9 × 9の盤面を、同じ行・列・3 × 3ブロックで数字が重複しないように1〜9で埋めるゲームです。',
       tips: ['空欄を選んで1〜9を入力', '行・列・3 × 3で重複させない', 'すべて正しく埋めればクリア'],
@@ -70,34 +96,54 @@ const HOW_TO_COPY = {
     detailsHeading: 'Controls and win condition',
     hide: 'Hide how to play',
     minesweeper: {
+      rank: {
+        intro: 'Your clear grade uses score ÷ (safe cells × 10). Time does not affect grade and is tracked separately as best time. Larger cascades are the main route to a higher grade.',
+        items: [
+          'S: efficiency 3.8+. Beginner 3,420 / Intermediate 12,920 / Expert 48,640 points',
+          'A: efficiency 2.7+. Beginner 2,430 / Intermediate 9,180 / Expert 34,560 points',
+          'B: efficiency 1.7+. Beginner 1,530 / Intermediate 5,780 / Expert 21,760 points',
+          'C: below 1.7. Build larger empty-cell cascades instead of opening only small groups',
+        ],
+        title: 'How grades work',
+      },
       steps: [
         'Each number tells you how many mines are hidden in the eight surrounding cells. Use the numbers to identify safe cells.',
-        'Right-click a suspected mine, or touch and hold with a finger or pen, to place a flag. Repeat to change it to “?”, then clear the mark.',
-        'Press an open number again to open its remaining neighbors when the surrounding flag count matches the number. Open every safe cell to win.',
+        'Touch and pen users choose Open or Mark. Mark cycles Flag → ? → Clear. Right-click and hold remain marking shortcuts.',
+        'Press an open number again to open its remaining neighbors when the surrounding flag count matches. Use Fit to screen to show the full board. Open every safe cell to win.',
       ],
       summary: 'Open every safe cell without hitting a mine. Your first cell and its eight neighbors are always safe.',
-      tips: ['Numbers count adjacent mines', 'Right-click or hold to flag', 'Open every safe cell to win'],
+      tips: ['Numbers count adjacent mines', 'Choose Open or Mark for touch', 'Open every safe cell to win'],
       title: 'How to play Minesweeper',
     },
     restore: 'How to play',
     shisen: {
+      rank: {
+        intro: 'Grade penalty is clear time in seconds + 120 seconds per reshuffle. Hints do not affect grade. Avoiding one reshuffle is equivalent to finishing two minutes faster.',
+        items: ['S: 359 seconds or less', 'A: 360–719 seconds', 'B: 720–1,199 seconds', 'C: 1,200 seconds or more'],
+        title: 'How grades work',
+      },
       steps: [
         'Select two tiles with the same symbol. They are removed when a valid line can connect them.',
         'The line may travel only through empty spaces and turn at most twice. It may also travel around the outside of the board.',
-        'Use a hint when you cannot find a pair. If you are stuck, reshuffle the remaining tiles into another solvable layout. Remove every tile to win.',
+        'Use Fit to screen to show the whole layout. Use a hint when you cannot find a pair, or reshuffle into another solvable layout when stuck. Remove every tile to win.',
       ],
       summary: 'Match identical tiles that can be connected by a line with no more than two turns. The line cannot pass through other tiles.',
       tips: ['Select two identical tiles', 'The path may turn at most twice', 'Remove every tile to win'],
       title: 'How to play Shisen-Sho',
     },
     sudoku: {
+      rank: {
+        intro: 'Grade penalty is clear time in seconds + 90 seconds per hint + 35 seconds per mistake. Puzzle type and difficulty do not change the formula. Reduce hints and mistakes as well as time to rank up.',
+        items: ['S: 299 seconds or less', 'A: 300–599 seconds', 'B: 600–999 seconds', 'C: 1,000 seconds or more'],
+        title: 'How grades work',
+      },
       steps: [
         'Select an empty cell and enter a number from 1 to 9. The numbers supplied by the puzzle cannot be changed.',
         'Place 1 through 9 exactly once in every row, column, and bold 3 × 3 box. Duplicate numbers are shown in red.',
         'Switch to Notes to record candidates. You can also use the placement guide, matching-number highlight, hint, and undo controls. Fill every cell correctly to win.',
       ],
       strategy: {
-        generator: 'The generator starts with a solved board and removes one number at a time, searching after every removal to ensure that exactly one solution remains. Beginner also verifies that repeatedly filling cells with one candidate can complete the whole puzzle. Easy and above guarantee a unique solution, but not completion with a particular set of human techniques. Normal, Hard, and Expert choose the highest-rated puzzle from 2, 3, and 6 candidates. The rating includes cells left after naked and hidden singles plus backtracking branches and search nodes.',
+        generator: 'Uniqueness is checked with Algorithm X / Dancing Links. Beginner also verifies that repeatedly filling cells with one candidate completes the puzzle. Difficulty analysis applies naked and hidden singles, locked candidates, naked and hidden pairs, X-Wing, XY-Wing, and simple coloring in order. The rating records the hardest technique, its uses, candidate eliminations, and remaining search effort. Normal, Hard, and Expert choose the highest-rated puzzle from 2, 3, and 6 candidates.',
         generatorTitle: 'How generation affects solving',
         intro: 'Before guessing a number, narrow the candidates in this order. Every confirmed number changes the board, so the key habit is to repeat the same sequence after each placement.',
         steps: [
@@ -105,10 +151,16 @@ const HOW_TO_COPY = {
           'Find naked singles: when a cell has only one candidate, that number is forced. Every Beginner puzzle is guaranteed to finish by repeating this technique.',
           'Find hidden singles: a cell may have several candidates, but if one number has no other possible position in its row, column, or box, it is forced there. The current analyzer applies this after naked singles.',
           'Rescan the affected units: after placing a number, remove it from candidates in the same row, column, and box. Check those three areas first for newly created naked or hidden singles.',
-          'When basic singles stop, compare candidates: a pair of cells holding the same two candidates can exclude those numbers elsewhere, while candidates confined to one row or column inside a box can form a locked candidate. The current generator does not classify or guarantee any particular advanced technique.',
+          'When basic singles stop, compare candidates: eliminate candidates with pairs, locked candidates, X-Wing, XY-Wing, then simple coloring. The current analyzer classifies techniques in the same order.',
           'Progress without contradictions: every puzzle has one solution, but higher ratings also include backtracking search effort. That is an internal difficulty measurement, not a recommendation to guess. Continue eliminating candidates logically and use a hint only when needed.',
         ],
         title: 'A logical solving sequence',
+        variants: [
+          'Classic: removes individual clues from a solved board while preserving one solution.',
+          'Symmetric: removes 180° rotational pairs until no remaining pair can be removed without losing uniqueness.',
+          'Killer: use the supplied digits, then fill each connected dashed cage without repeats so it reaches the upper-left sum. The givens and cage sums together define one solution.',
+        ],
+        variantsTitle: 'Additional rules by puzzle type',
       },
       summary: 'Fill the 9 × 9 grid with 1 through 9 without repeating a number in any row, column, or 3 × 3 box.',
       tips: ['Select a cell and enter 1–9', 'No repeats in rows, columns, or boxes', 'Fill every cell correctly to win'],
@@ -183,6 +235,13 @@ export function GameHowTo({ game }: { game: HowToGameId }) {
           <ol>
             {gameCopy.steps.map((step) => <li key={step}>{step}</li>)}
           </ol>
+          <section className="game-rank-guide">
+            <h3>{gameCopy.rank.title}</h3>
+            <p>{gameCopy.rank.intro}</p>
+            <ul>
+              {gameCopy.rank.items.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </section>
           {'strategy' in gameCopy ? (
             <section className="sudoku-strategy">
               <h3>{gameCopy.strategy.title}</h3>
@@ -194,6 +253,12 @@ export function GameHowTo({ game }: { game: HowToGameId }) {
                 <strong>{gameCopy.strategy.generatorTitle}</strong>
                 <p>{gameCopy.strategy.generator}</p>
               </aside>
+              <div className="sudoku-variant-help">
+                <h3>{gameCopy.strategy.variantsTitle}</h3>
+                <ul>
+                  {gameCopy.strategy.variants.map((variant) => <li key={variant}>{variant}</li>)}
+                </ul>
+              </div>
             </section>
           ) : null}
         </div>

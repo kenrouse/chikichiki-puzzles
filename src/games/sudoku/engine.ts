@@ -1,20 +1,38 @@
+import { countSudokuSolutionsExactCover } from './exactCover'
+import {
+  analyzeHumanSolving,
+  type HumanTechnique,
+} from './humanSolver'
+import {
+  countKillerSolutions,
+  createKillerCages,
+  getKillerCandidateMask,
+  type KillerCage,
+} from './killer'
+
 export type SudokuDifficulty = 'beginner' | 'easy' | 'normal' | 'hard' | 'expert'
+export type SudokuVariant = 'classic' | 'killer' | 'symmetric'
 
 export interface SudokuAnalysis {
+  candidateEliminations: number
   clueCount: number
   guessBranches: number
+  hardestTechnique: HumanTechnique | 'none' | 'search'
   logicalPlacements: number
   rating: number
   searchNodes: number
+  techniques: Record<HumanTechnique, number>
   unresolvedAfterLogic: number
 }
 
 export interface SudokuPuzzle {
   analysis: SudokuAnalysis
+  cages?: KillerCage[]
   difficulty: SudokuDifficulty
   puzzle: number[]
   seed: number
   solution: number[]
+  variant?: SudokuVariant
 }
 
 const ALL_DIGITS_MASK = 0b1111111110
@@ -32,6 +50,14 @@ const GENERATION_ATTEMPTS: Record<SudokuDifficulty, number> = {
   normal: 2,
   hard: 3,
   expert: 6,
+}
+
+const KILLER_CAGE_SIZES: Record<SudokuDifficulty, number> = {
+  beginner: 1,
+  easy: 2,
+  normal: 3,
+  hard: 4,
+  expert: 5,
 }
 
 type RandomSource = () => number
@@ -116,25 +142,6 @@ function maskToDigit(mask: number): number {
   return 0
 }
 
-function createUnits(): number[][] {
-  const rows = Array.from({ length: 9 }, (_, row) =>
-    Array.from({ length: 9 }, (_, column) => row * 9 + column),
-  )
-  const columns = Array.from({ length: 9 }, (_, column) =>
-    Array.from({ length: 9 }, (_, row) => row * 9 + column),
-  )
-  const boxes = Array.from({ length: 9 }, (_, box) => {
-    const startRow = Math.floor(box / 3) * 3
-    const startColumn = (box % 3) * 3
-    return Array.from({ length: 9 }, (_, offset) =>
-      (startRow + Math.floor(offset / 3)) * 9 + startColumn + (offset % 3),
-    )
-  })
-  return [...rows, ...columns, ...boxes]
-}
-
-const SUDOKU_UNITS = createUnits()
-
 function findNakedSinglePlacement(board: readonly number[]): { index: number; value: number } | null {
   for (let index = 0; index < board.length; index += 1) {
     if (board[index] !== 0) {
@@ -143,27 +150,6 @@ function findNakedSinglePlacement(board: readonly number[]): { index: number; va
     const mask = getCandidateMask(board, index)
     if (bitCount(mask) === 1) {
       return { index, value: maskToDigit(mask) }
-    }
-  }
-  return null
-}
-
-function findLogicalPlacement(board: readonly number[]): { index: number; value: number } | null {
-  const nakedSingle = findNakedSinglePlacement(board)
-  if (nakedSingle) {
-    return nakedSingle
-  }
-
-  for (const unit of SUDOKU_UNITS) {
-    for (let digit = 1; digit <= 9; digit += 1) {
-      const positions = unit.filter(
-        (index) =>
-          board[index] === 0 &&
-          (getCandidateMask(board, index) & (1 << digit)) !== 0,
-      )
-      if (positions.length === 1) {
-        return { index: positions[0], value: digit }
-      }
     }
   }
   return null
@@ -233,115 +219,153 @@ function measureSearch(board: readonly number[]): { guessBranches: number; searc
 }
 
 export function analyzeSudoku(board: readonly number[]): SudokuAnalysis {
-  const working = [...board]
-  const clueCount = working.filter((value) => value !== 0).length
-  let logicalPlacements = 0
-  while (true) {
-    const placement = findLogicalPlacement(working)
-    if (!placement) {
-      break
-    }
-    working[placement.index] = placement.value
-    logicalPlacements += 1
-  }
-  const unresolvedAfterLogic = working.filter((value) => value === 0).length
-  const { guessBranches, searchNodes } = measureSearch(working)
+  const clueCount = board.filter((value) => value !== 0).length
+  const human = analyzeHumanSolving(board)
+  const unresolvedAfterLogic = human.unresolved
+  const { guessBranches, searchNodes } = measureSearch(human.board)
+  const techniqueWeight =
+    human.techniques['hidden-single'] * 2 +
+    human.techniques['locked-candidate'] * 12 +
+    human.techniques['naked-pair'] * 18 +
+    human.techniques['hidden-pair'] * 22 +
+    human.techniques['x-wing'] * 38 +
+    human.techniques['xy-wing'] * 52 +
+    human.techniques['simple-chain'] * 68
   const rating = Math.round(
     (81 - clueCount) * 1.6 +
+      techniqueWeight +
+      human.candidateEliminations * 0.8 +
       unresolvedAfterLogic * 3.2 +
       guessBranches * 24 +
       Math.log2(searchNodes + 1) * 9,
   )
   return {
+    candidateEliminations: human.candidateEliminations,
     clueCount,
     guessBranches,
-    logicalPlacements,
+    hardestTechnique: human.hardestTechnique,
+    logicalPlacements: human.placements,
     rating,
     searchNodes,
+    techniques: human.techniques,
     unresolvedAfterLogic,
   }
 }
 
 export function countSolutions(board: readonly number[], limit = 2): number {
-  const working = [...board]
-  let solutionCount = 0
-
-  function search(): void {
-    if (solutionCount >= limit) {
-      return
-    }
-
-    let bestIndex = -1
-    let bestMask = 0
-    let bestCount = 10
-
-    for (let index = 0; index < working.length; index += 1) {
-      if (working[index] !== 0) {
-        continue
-      }
-      const mask = getCandidateMask(working, index)
-      const candidateCount = bitCount(mask)
-      if (candidateCount === 0) {
-        return
-      }
-      if (candidateCount < bestCount) {
-        bestIndex = index
-        bestMask = mask
-        bestCount = candidateCount
-        if (candidateCount === 1) {
-          break
-        }
-      }
-    }
-
-    if (bestIndex === -1) {
-      solutionCount += 1
-      return
-    }
-
-    for (let digit = 1; digit <= 9; digit += 1) {
-      if ((bestMask & (1 << digit)) === 0) {
-        continue
-      }
-      working[bestIndex] = digit
-      search()
-      working[bestIndex] = 0
-      if (solutionCount >= limit) {
-        return
-      }
-    }
-  }
-
-  search()
-  return solutionCount
+  return countSudokuSolutionsExactCover(board, limit)
 }
 
-function generateSudokuCandidate(
+function createKillerClueBoard(
+  solution: readonly number[],
   difficulty: SudokuDifficulty,
-  seed: number,
-): SudokuPuzzle {
-  const random = createRandom(seed)
-  const solution = createSolvedBoard(random)
-  const puzzle = [...solution]
+  random: RandomSource,
+): number[] {
+  const clueBoard = [...solution]
   const removalOrder = shuffle(
     Array.from({ length: 81 }, (_, index) => index),
     random,
   )
   let clueCount = 81
-
   for (const index of removalOrder) {
-    if (clueCount <= CLUE_TARGETS[difficulty]) {
+    if (clueCount <= CLUE_TARGETS[difficulty]) break
+    const previous = clueBoard[index]
+    clueBoard[index] = 0
+    const remainsBeginnerFriendly =
+      difficulty !== 'beginner' || isSolvableWithNakedSingles(clueBoard)
+    if (countSolutions(clueBoard) !== 1 || !remainsBeginnerFriendly) {
+      clueBoard[index] = previous
+    } else {
+      clueCount -= 1
+    }
+  }
+  return clueBoard
+}
+
+function generateSudokuCandidate(
+  difficulty: SudokuDifficulty,
+  seed: number,
+  variant: SudokuVariant,
+): SudokuPuzzle {
+  const random = createRandom(seed)
+  const solution = createSolvedBoard(random)
+  if (variant === 'killer') {
+    const puzzle = createKillerClueBoard(solution, difficulty, random)
+    const fixedCells = new Set(
+      puzzle
+        .map((value, index) => value === 0 ? -1 : index)
+        .filter((index) => index >= 0),
+    )
+    const cages = createKillerCages(
+      solution,
+      random,
+      KILLER_CAGE_SIZES[difficulty],
+      fixedCells,
+    )
+    const analysis = analyzeSudoku(puzzle)
+    const cageComplexity = cages.reduce(
+      (total, cage) => total + (cage.cells.length - 1) ** 2,
+      0,
+    )
+    const singletonCages = cages.filter((cage) => cage.cells.length === 1).length
+    const rating = Math.max(
+      1,
+      Math.round(
+        (81 - fixedCells.size) * 2 +
+        cageComplexity * 12 -
+        singletonCages * 2,
+      ),
+    )
+    return {
+      analysis: {
+        ...analysis,
+        clueCount: fixedCells.size,
+        rating,
+      },
+      cages,
+      difficulty,
+      puzzle,
+      seed,
+      solution,
+      variant,
+    }
+  }
+
+  const puzzle = [...solution]
+  const removalGroups = variant === 'symmetric'
+    ? shuffle(
+      Array.from({ length: 41 }, (_, index) =>
+        index === 40 ? [40] : [index, 80 - index],
+      ),
+      random,
+    )
+    : shuffle(
+      Array.from({ length: 81 }, (_, index) => [index]),
+      random,
+    )
+  let clueCount = 81
+
+  for (const group of removalGroups) {
+    if (variant === 'classic' && clueCount <= CLUE_TARGETS[difficulty]) {
       break
     }
-    const previousValue = puzzle[index]
-    puzzle[index] = 0
+    const minimumClues = variant === 'symmetric' ? 17 : CLUE_TARGETS[difficulty]
+    if (clueCount - group.length < minimumClues) continue
+    const previousValues = group.map((index) => puzzle[index])
+    for (const index of group) puzzle[index] = 0
     const solutionCount = countSolutions(puzzle)
     const remainsBeginnerFriendly =
       difficulty !== 'beginner' || isSolvableWithNakedSingles(puzzle)
-    if (solutionCount !== 1 || !remainsBeginnerFriendly) {
-      puzzle[index] = previousValue
+    const remainsEasyFriendly =
+      difficulty !== 'easy' ||
+      variant !== 'symmetric' ||
+      analyzeHumanSolving(puzzle).unresolved === 0
+    if (solutionCount !== 1 || !remainsBeginnerFriendly || !remainsEasyFriendly) {
+      group.forEach((index, groupIndex) => {
+        puzzle[index] = previousValues[groupIndex]
+      })
     } else {
-      clueCount -= 1
+      clueCount -= group.length
     }
   }
 
@@ -351,12 +375,14 @@ function generateSudokuCandidate(
     puzzle,
     seed,
     solution,
+    variant,
   }
 }
 
 export function generateSudoku(
   difficulty: SudokuDifficulty,
   seed: number,
+  variant: SudokuVariant = 'classic',
 ): SudokuPuzzle {
   const candidates = Array.from(
     { length: GENERATION_ATTEMPTS[difficulty] },
@@ -364,6 +390,7 @@ export function generateSudoku(
       generateSudokuCandidate(
         difficulty,
         (seed + Math.imul(attempt, 0x9e3779b1)) >>> 0,
+        variant,
       ),
   )
   const selected = difficulty === 'beginner' || difficulty === 'easy'
@@ -379,11 +406,15 @@ export function generateSudoku(
 export function getCandidates(
   board: readonly number[],
   index: number,
+  cages: readonly KillerCage[] = [],
 ): number[] {
   if (board[index] !== 0) {
     return []
   }
-  const mask = getCandidateMask(board, index)
+  const cage = cages.find((candidate) => candidate.cells.includes(index))
+  const mask = cage
+    ? getKillerCandidateMask(board, index, cage)
+    : getCandidateMask(board, index)
   return Array.from({ length: 9 }, (_, offset) => offset + 1).filter(
     (digit) => (mask & (1 << digit)) !== 0,
   )
@@ -423,4 +454,29 @@ export function isSudokuSolved(
   solution: readonly number[],
 ): boolean {
   return values.every((value, index) => value === solution[index])
+}
+
+export function getCageConflicts(
+  board: readonly number[],
+  cages: readonly KillerCage[] = [],
+): Set<number> {
+  const conflicts = new Set<number>()
+  for (const cage of cages) {
+    const values = cage.cells
+      .map((cell) => board[cell])
+      .filter((value) => value !== 0)
+    const sum = values.reduce((total, value) => total + value, 0)
+    const duplicate = new Set(values).size !== values.length
+    const complete = values.length === cage.cells.length
+    if (duplicate || sum > cage.sum || (complete && sum !== cage.sum)) {
+      for (const cell of cage.cells) conflicts.add(cell)
+    }
+  }
+  return conflicts
+}
+
+export function countPuzzleSolutions(puzzle: SudokuPuzzle, limit = 2): number {
+  return puzzle.variant === 'killer' && puzzle.cages
+    ? countKillerSolutions(puzzle.puzzle, puzzle.cages, limit)
+    : countSolutions(puzzle.puzzle, limit)
 }

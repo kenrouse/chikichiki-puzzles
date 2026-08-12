@@ -51,6 +51,7 @@
 .focus-mode .app-footer,
 .focus-mode .game-heading,
 .focus-mode .difficulty-row > .segmented-control,
+.focus-mode .sudoku-variant-row,
 .focus-mode .game-how-to,
 .focus-mode .game-how-to-restore,
 .focus-mode .mine-mode-row,
@@ -272,6 +273,7 @@
 
 main {
   width: min(1320px, 100%);
+  min-height: 0;
   flex: 1;
   margin: 0 auto;
   padding: 34px 34px 58px;
@@ -301,8 +303,9 @@ main {
 .title-screen {
   display: grid;
   gap: 34px;
-  min-height: calc(100svh - 190px);
-  align-content: center;
+  min-height: 0;
+  align-content: start;
+  padding-block: clamp(6px, 2vh, 22px);
   animation: workspace-in 260ms ease both;
 }
 
@@ -533,7 +536,7 @@ main {
 
 .game-how-to {
   margin: -6px 0 24px;
-  padding: 16px 0;
+  padding: 18px clamp(16px, 2.5vw, 28px);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--mint) 12%, transparent);
@@ -664,6 +667,31 @@ main {
   line-height: 1.65;
 }
 
+.game-rank-guide {
+  margin-top: 18px;
+  padding: 15px 16px;
+  border-left: 4px solid var(--coral);
+  background: color-mix(in srgb, var(--coral) 9%, var(--paper-strong));
+}
+
+.game-rank-guide p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.game-rank-guide ul {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+
+.game-rank-guide li {
+  color: var(--ink);
+}
+
 .sudoku-strategy {
   margin-top: 18px;
   padding-top: 16px;
@@ -694,6 +722,23 @@ main {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.7;
+}
+
+.sudoku-variant-help {
+  margin-top: 16px;
+}
+
+.sudoku-variant-help ul {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+
+.sudoku-variant-help li {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
 }
 
 .game-how-to-restore {
@@ -769,6 +814,63 @@ main {
   align-items: center;
   gap: 16px;
   margin: -8px 0 18px;
+}
+
+.mine-touch-mode {
+  display: none;
+  position: sticky;
+  z-index: 30;
+  bottom: 10px;
+  width: min(420px, 100%);
+  margin: 0 auto 16px;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--paper-strong) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.mine-touch-mode > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font: 700 9px/1 var(--font-display);
+  text-align: center;
+}
+
+.mine-touch-mode > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mine-touch-mode button {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  background: var(--paper-strong);
+  cursor: pointer;
+}
+
+.mine-touch-mode button:first-child { border-radius: 5px 0 0 5px; }
+.mine-touch-mode button:last-child { border-left: 0; border-radius: 0 5px 5px 0; }
+.mine-touch-mode button.active { color: var(--paper-strong); background: var(--forest); }
+.mine-touch-mode button > span { display: grid; gap: 3px; text-align: left; }
+.mine-touch-mode button strong { font-size: 11px; }
+.mine-touch-mode button small { font-size: 9px; opacity: 0.75; }
+.mine-touch-mode svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+@media (hover: none), (pointer: coarse) {
+  .mine-touch-mode { display: block; }
+}
+
+:root[data-active-pointer='touch'] .mine-touch-mode,
+:root[data-active-pointer='pen'] .mine-touch-mode {
+  display: block;
 }
 
 .mine-mode-row > p {
@@ -848,6 +950,53 @@ main {
 
 /* Sudoku */
 
+.sudoku-variant-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: -8px 0 20px;
+}
+
+.sudoku-variant-row > span {
+  color: var(--muted);
+  font: 700 9px/1 var(--font-display);
+}
+
+.sudoku-variant-row .segmented-control button {
+  min-width: 150px;
+}
+
+.sudoku-variant-row .segmented-control small {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sudoku-analysis-row {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  margin: -10px 0 20px;
+  background: var(--line);
+}
+
+.sudoku-analysis-row span {
+  display: grid;
+  min-width: 110px;
+  flex: 1;
+  gap: 5px;
+  padding: 9px 12px;
+  color: var(--muted);
+  background: var(--paper-strong);
+  font: 700 8px/1.2 var(--font-display);
+}
+
+.sudoku-analysis-row strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
 .sudoku-layout {
   display: grid;
   grid-template-columns: minmax(360px, 600px) 260px;
@@ -881,6 +1030,30 @@ main {
   cursor: pointer;
   overflow: hidden;
   transition: background 110ms ease, filter 110ms ease, box-shadow 110ms ease;
+}
+
+.sudoku-cell.killer-cage::after {
+  position: absolute;
+  z-index: 2;
+  inset: 2px;
+  border: 0 dashed var(--coral);
+  content: '';
+  pointer-events: none;
+}
+
+.sudoku-cell.killer-cage.cage-top::after { border-top-width: 2px; }
+.sudoku-cell.killer-cage.cage-right::after { border-right-width: 2px; }
+.sudoku-cell.killer-cage.cage-bottom::after { border-bottom-width: 2px; }
+.sudoku-cell.killer-cage.cage-left::after { border-left-width: 2px; }
+
+.cage-sum {
+  position: absolute;
+  z-index: 3;
+  top: 3px;
+  left: 5px;
+  color: var(--coral);
+  font: 800 8px/1 var(--font-display);
+  pointer-events: none;
 }
 
 .sudoku-board .sudoku-cell:hover {
@@ -1441,9 +1614,12 @@ main {
 
 .app-footer {
   display: flex;
+  min-height: 48px;
+  flex: 0 0 auto;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 18px 28px;
+  padding: 16px 28px max(16px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   color: var(--muted);
   background: var(--paper-strong);
@@ -2029,6 +2205,26 @@ button:active,
   animation: dialog-in 220ms cubic-bezier(0.2, 0.85, 0.3, 1.12) both;
 }
 
+.result-rank-progress {
+  display: grid;
+  gap: 7px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-left: 4px solid var(--sun);
+  background: color-mix(in srgb, var(--sun) 15%, var(--paper-strong));
+}
+
+.result-rank-progress strong {
+  color: var(--ink);
+  font: 700 11px/1.2 var(--font-display);
+}
+
+.result-rank-progress span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
 @keyframes dialog-in {
   from { opacity: 0; transform: translateY(14px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -2263,6 +2459,51 @@ button:active,
   font: 700 13px/1 var(--font-display);
 }
 
+.game-start-prompt {
+  gap: 18px;
+  max-width: min(420px, calc(100vw - 32px));
+  animation: none !important;
+  text-align: center;
+}
+
+.game-start-gate {
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+  padding: 18px;
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--mint) 20%, var(--paper-strong));
+}
+
+.game-start-gate .game-start-prompt small {
+  color: var(--muted);
+}
+
+.game-start-prompt button {
+  min-width: 190px;
+  min-height: 58px;
+  padding: 12px 28px;
+  border: 2px solid var(--sun);
+  border-radius: 6px;
+  color: var(--forest);
+  background: var(--sun);
+  cursor: pointer;
+  font: 800 18px/1 var(--font-display);
+}
+
+.game-start-prompt button:hover,
+.game-start-prompt button:focus-visible {
+  color: var(--paper-strong);
+  background: var(--coral);
+}
+
+.game-start-prompt small {
+  max-width: 360px;
+  margin-top: 0;
+  color: var(--paper-strong);
+  font: 600 12px/1.6 var(--font-sans);
+}
+
 @keyframes countdown-pop {
   0% { opacity: 0; transform: scale(0.4) rotate(-8deg); }
   35% { opacity: 1; transform: scale(1.12) rotate(2deg); }
@@ -2274,7 +2515,8 @@ button:active,
   width: min(570px, 100%);
   padding: 34px;
   text-align: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .result-rays {
@@ -2857,6 +3099,13 @@ button:active,
   .algorithm-flow i { text-align: center; transform: rotate(90deg); }
   .practice-grid { grid-template-columns: 1fr; }
   .game-how-to-tips { grid-template-columns: 1fr; }
+  .sudoku-variant-row { align-items: stretch; flex-direction: column; gap: 7px; }
+  .sudoku-variant-row .segmented-control { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sudoku-variant-row .segmented-control button { min-width: 0; padding-inline: 5px; }
+  .sudoku-variant-row .segmented-control small { max-width: none; font-size: 7px; }
+  .sudoku-analysis-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sudoku-analysis-row span { min-width: 0; padding-inline: 6px; }
+  .sudoku-analysis-row strong { overflow-wrap: anywhere; }
 }
 
 @media (max-width: 520px) {

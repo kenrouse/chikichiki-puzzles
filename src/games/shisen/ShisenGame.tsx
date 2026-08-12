@@ -5,6 +5,7 @@ import {
   Lightbulb,
   RefreshCw,
   RotateCcw,
+  Scan,
   Shuffle,
   ZoomIn,
   ZoomOut,
@@ -20,6 +21,8 @@ import {
   useGameCountdown,
 } from '../../experience/20260811_AppExperience'
 import { formatElapsedTime, useStoredState } from '../../lib/storage'
+import { calculateShisenRank } from '../20260812_ranking'
+import { fitBoardScale } from '../20260812_viewSizing'
 import { GameShareButton } from '../../share/20260811_GameShare'
 import { readSharedGameParameters } from '../../share/20260811_seededGameUrl'
 import {
@@ -51,6 +54,8 @@ const SHISEN_COPY = {
     hint: 'ヒント',
     hintMessage: '光っている2枚を消せます。',
     hintTooltip: '現在消せる牌を2枚光らせる',
+    fitBoard: '画面に合わせる',
+    fitBoardTooltip: '配牌全体が現在の画面に収まる倍率へ調整',
     initialBoard: '初期盤面を閲覧中',
     initialBoardDescription: 'ゲーム開始時の牌配置です。',
     initialBoardTooltip: 'ゲーム開始時の牌配置を閲覧する',
@@ -58,6 +63,11 @@ const SHISEN_COPY = {
     newBoard: '新しい配牌',
     nextBoard: '次の配牌',
     playingMessage: '盤外を通る経路も使えます。',
+    rankActionsMessage: (grade: string, maximum: number, reduction: number, excess: number) => `${grade}ランクは合計ペナルティ${maximum}秒以下です。次回は${reduction}秒分改善してください。同じシャッフル数ではペナルティだけで上限を${excess}秒超えるため、シャッフル回数も減らす必要があります。`,
+    rankHighestHeading: '最高ランク S',
+    rankHighestMessage: 'Sランク達成です。時間とシャッフルを合わせたペナルティを359秒以下に抑えました。',
+    rankNextHeading: (grade: string) => `次は${grade}ランク`,
+    rankNextMessage: (grade: string, maximum: number, reduction: number, time: string) => `${grade}ランクは合計ペナルティ${maximum}秒以下です。次回は${reduction}秒分改善し、同じシャッフル数なら${time}以内のクリアが目安です。`,
     restoreCleared: 'クリア後の盤面へ戻る',
     restoreClearedLabel: 'クリア後の空盤面を表示',
     restoreClearedTooltip: 'すべて消したクリア後の盤面へ戻る',
@@ -87,6 +97,8 @@ const SHISEN_COPY = {
     hint: 'Hint',
     hintMessage: 'The two glowing tiles can be removed.',
     hintTooltip: 'Highlight a pair that can be removed now',
+    fitBoard: 'Fit to screen',
+    fitBoardTooltip: 'Adjust zoom so the full tile layout fits the current screen',
     initialBoard: 'Viewing the initial layout',
     initialBoardDescription: 'This is the tile layout from the start of the game.',
     initialBoardTooltip: 'View the tile layout from the start of the game',
@@ -94,6 +106,11 @@ const SHISEN_COPY = {
     newBoard: 'New layout',
     nextBoard: 'Next layout',
     playingMessage: 'Paths may also travel around the outside of the board.',
+    rankActionsMessage: (grade: string, maximum: number, reduction: number, excess: number) => `Grade ${grade} requires a total penalty of ${maximum} seconds or less. Improve by ${reduction} seconds next time. With the same shuffle count, shuffle penalties alone exceed the target by ${excess} seconds, so reduce shuffles too.`,
+    rankHighestHeading: 'Top grade S',
+    rankHighestMessage: 'You earned grade S by keeping time plus shuffle penalties at 359 seconds or less.',
+    rankNextHeading: (grade: string) => `Next: grade ${grade}`,
+    rankNextMessage: (grade: string, maximum: number, reduction: number, time: string) => `Grade ${grade} requires a total penalty of ${maximum} seconds or less. Improve by ${reduction} seconds next time; with the same shuffle count, aim to finish within ${time}.`,
     restoreCleared: 'Return to the cleared board',
     restoreClearedLabel: 'Show the cleared board',
     restoreClearedTooltip: 'Return to the empty board after all tiles were removed',
@@ -172,14 +189,6 @@ function createInitialSession(): ShisenSession {
   return createSession(difficulty, shared?.seed)
 }
 
-function getShisenGrade(session: ShisenSession): string {
-  const penalty = session.elapsedSeconds + session.shuffleCount * 120
-  if (penalty < 360) return 'S'
-  if (penalty < 720) return 'A'
-  if (penalty < 1200) return 'B'
-  return 'C'
-}
-
 export function ShisenGame() {
   const isSharedGame = readSharedGameParameters('shisen') !== null
   const [session, setSession] = useStoredState<ShisenSession>(
@@ -199,9 +208,16 @@ export function ShisenGame() {
   const [zoom, setZoom] = useState(1)
   const pathTimer = useRef<number | null>(null)
   const missTimer = useRef<number | null>(null)
+  const boardFocusRef = useRef<HTMLDivElement>(null)
   const { playEffect, preferences } = useAppExperience()
   const copy = getLocalizedCopy(preferences.language, SHISEN_COPY)
-  const { countdown, isCountingDown, restartCountdown } = useGameCountdown(
+  const {
+    beginCountdown,
+    countdown,
+    isCountingDown,
+    restartCountdown,
+    waitingToStart,
+  } = useGameCountdown(
     session.elapsedSeconds === 0 && session.board.status === 'playing',
   )
   const board = session.board
@@ -209,6 +225,72 @@ export function ShisenGame() {
     ? session.initialBoard
     : board
   const remaining = board.tiles.filter((tile) => tile !== null).length
+  const rank = calculateShisenRank(session.elapsedSeconds, session.shuffleCount)
+  const rankProgress = rank.nextGrade === null || rank.nextMaximum === null
+    ? { heading: copy.rankHighestHeading, message: copy.rankHighestMessage }
+    : rank.targetSecondsWithSameActions !== null && rank.targetSecondsWithSameActions >= 0
+      ? {
+        heading: copy.rankNextHeading(rank.nextGrade),
+        message: copy.rankNextMessage(
+          rank.nextGrade,
+          rank.nextMaximum,
+          rank.reductionNeeded,
+          formatElapsedTime(rank.targetSecondsWithSameActions),
+        ),
+      }
+      : {
+        heading: copy.rankNextHeading(rank.nextGrade),
+        message: copy.rankActionsMessage(
+          rank.nextGrade,
+          rank.nextMaximum,
+          rank.reductionNeeded,
+          Math.abs(rank.targetSecondsWithSameActions ?? 0),
+        ),
+      }
+
+  function beginGame(): void {
+    boardFocusRef.current?.scrollIntoView({
+      behavior: 'auto',
+      block: 'center',
+      inline: 'nearest',
+    })
+    window.setTimeout(beginCountdown, 0)
+  }
+
+  function fitBoardToScreen(): void {
+    const viewport = boardFocusRef.current
+    if (!viewport) {
+      return
+    }
+    const baseWidth = BOARD_WIDTHS[displayBoard.difficulty]
+    const boardAspect = (displayBoard.width + 2) / ((displayBoard.height + 2) * 1.32)
+    const baseHeight = baseWidth / boardAspect
+    const viewportStyle = window.getComputedStyle(viewport)
+    const horizontalInsets =
+      Number.parseFloat(viewportStyle.paddingLeft) +
+      Number.parseFloat(viewportStyle.paddingRight) +
+      6
+    const verticalInsets =
+      Number.parseFloat(viewportStyle.paddingTop) +
+      Number.parseFloat(viewportStyle.paddingBottom) +
+      6
+    const availableWidth = Math.max(1, viewport.clientWidth - horizontalInsets)
+    const availableHeight = Math.max(
+      180,
+      Math.min(window.innerHeight - 120, viewport.clientHeight - verticalInsets),
+    )
+    setZoom(fitBoardScale(
+      availableWidth,
+      availableHeight,
+      baseWidth,
+      baseHeight,
+      0.2,
+      1.4,
+    ))
+    window.requestAnimationFrame(() => {
+      viewport.scrollTo({ left: 0, top: 0 })
+    })
+  }
 
   useEffect(() => {
     if (board.status !== 'playing' || isCountingDown) {
@@ -256,7 +338,11 @@ export function ShisenGame() {
 
   function requestDifficultyChange(difficulty: ShisenDifficulty): void {
     if (difficulty !== board.difficulty) {
-      setPendingDifficulty(difficulty)
+      if (waitingToStart) {
+        startNewGame(difficulty)
+      } else {
+        setPendingDifficulty(difficulty)
+      }
     }
   }
 
@@ -375,7 +461,11 @@ export function ShisenGame() {
 
   return (
     <section className={`game-workspace shisen-workspace ${isCountingDown ? 'game-paused' : ''}`} aria-labelledby="shisen-title">
-      <CountdownOverlay value={countdown} />
+      <CountdownOverlay
+        onStart={beginGame}
+        value={countdown}
+        waitingToStart={waitingToStart}
+      />
       <header className="game-heading">
         <div>
           <p className="eyebrow">2009 / FOR YUKA</p>
@@ -416,8 +506,8 @@ export function ShisenGame() {
           <button
             aria-label={copy.shrink}
             data-tooltip={copy.shrinkTooltip}
-            disabled={zoom <= 0.7}
-            onClick={() => setZoom((current) => Math.max(0.7, current - 0.1))}
+            disabled={zoom <= 0.2}
+            onClick={() => setZoom((current) => Math.max(0.2, current - 0.1))}
             type="button"
           >
             <ZoomOut aria-hidden="true" />
@@ -430,6 +520,14 @@ export function ShisenGame() {
             type="button"
           >
             <ZoomIn aria-hidden="true" />
+          </button>
+          <button
+            aria-label={copy.fitBoard}
+            data-tooltip={copy.fitBoardTooltip}
+            onClick={fitBoardToScreen}
+            type="button"
+          >
+            <Scan aria-hidden="true" />
           </button>
           {board.status === 'won' ? (
             <button
@@ -490,7 +588,7 @@ export function ShisenGame() {
         </div>
       ) : null}
 
-      <div className="shisen-scroll" tabIndex={0} aria-label={copy.scrollBoard}>
+      <div className="shisen-scroll" tabIndex={0} aria-label={copy.scrollBoard} ref={boardFocusRef}>
         <div className={`shisen-shell ${missedTiles.length > 0 ? 'miss-reaction' : ''}`} style={shellStyle}>
           <div className="shisen-mat" aria-hidden="true" />
           {displayBoard.tiles.map((tile, index) => {
@@ -558,7 +656,7 @@ export function ShisenGame() {
         <ResultReopenButton onClick={() => setResultOpen(true)} />
       ) : null}
       <ResultModal
-        grade={getShisenGrade(session)}
+        grade={rank.grade}
         onClose={() => {
           setResultOpen(false)
           setShowInitialBoard(true)
@@ -566,6 +664,7 @@ export function ShisenGame() {
         onPrimary={() => startNewGame(board.difficulty)}
         open={resultOpen}
         primaryLabel={copy.nextBoard}
+        rankProgress={rankProgress}
         shareAction={(
           <GameShareButton
             buttonLabel={copy.shareBoard}

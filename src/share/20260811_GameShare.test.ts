@@ -26,6 +26,7 @@ describe('seeded game sharing', () => {
       game: 'shisen',
       guessFree: null,
       seed: 20090101,
+      variant: null,
     })
     expect(parseSharedGameHash('#/sudoku?seed=-1')).toBeNull()
     expect(parseSharedGameHash('#/sudoku?seed=4294967296')).toBeNull()
@@ -58,6 +59,18 @@ describe('seeded game sharing', () => {
     )
 
     expect(parseSharedGameHash(new URL(url).hash)?.guessFree).toBe(false)
+  })
+
+  test('preserves the Sudoku generation variant', () => {
+    const url = buildSeededGameUrl(
+      'https://kenrouse.github.io/chikichiki-puzzles/',
+      'sudoku',
+      99,
+      'hard',
+      { variant: 'killer' },
+    )
+
+    expect(parseSharedGameHash(new URL(url).hash)?.variant).toBe('killer')
   })
 
   test('builds a fixed top-page URL without the current hash or query', () => {

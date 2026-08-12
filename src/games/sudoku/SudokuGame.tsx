@@ -19,16 +19,21 @@ import {
   useGameCountdown,
 } from '../../experience/20260811_AppExperience'
 import { formatElapsedTime, useStoredState } from '../../lib/storage'
+import { calculateSudokuRank } from '../20260812_ranking'
 import { GameShareButton } from '../../share/20260811_GameShare'
 import { readSharedGameParameters } from '../../share/20260811_seededGameUrl'
 import {
   generateSudoku,
+  getCageConflicts,
   getCandidates,
   getConflicts,
   isSudokuSolved,
   type SudokuDifficulty,
   type SudokuPuzzle,
+  type SudokuVariant,
 } from './engine'
+import type { HumanTechnique } from './humanSolver'
+import type { KillerCage } from './killer'
 
 interface SudokuHistoryEntry {
   notes: number[]
@@ -45,14 +50,28 @@ interface SudokuSession {
   values: number[]
 }
 
+interface PendingSudokuSetup {
+  difficulty: SudokuDifficulty
+  variant: SudokuVariant
+}
+
+interface KillerCellInfo {
+  bottom: boolean
+  left: boolean
+  right: boolean
+  sum: number | null
+  top: boolean
+}
+
 const SUDOKU_COPY = {
   ja: {
-    begin: (difficulty: string) => `${difficulty}で開始`,
+    begin: (difficulty: string, variant: string) => `${difficulty}・${variant}で開始`,
     board: '数独盤面',
     checkMessage: '赤い数字が重複しています。',
+    cageTechnique: 'ケージ合計',
     clearMessage: '正解です。やったね！',
     confirmMessage: '現在の進行状況は終了し、新しい問題を生成します。この操作は元に戻せません。',
-    confirmTitle: '難易度を変更しますか？',
+    confirmTitle: '問題設定を変更しますか？',
     correctTitle: '正解です',
     difficulties: { beginner: '入門', easy: 'やさしい', normal: 'ふつう', hard: 'むずかしい', expert: 'エキスパート' },
     difficulty: '難易度',
@@ -75,23 +94,52 @@ const SUDOKU_COPY = {
     input: '数字入力',
     inputDigit: (digit: number, noteMode: boolean) => `${digit}を${noteMode ? '小さいメモ' : '大きい確定値'}として入力。右クリックでは常にメモ入力`,
     keyboardMessage: '数字キーと矢印キーにも対応しています。',
+    metricCage: 'CAGE',
+    metricClue: 'CLUE',
+    eliminations: '候補削除',
     newPuzzle: '新しい問題',
     nextPuzzle: '次の問題',
     note: 'メモ',
     noteMessage: '候補の数字を複数記録できます。',
+    rankActionsMessage: (grade: string, maximum: number, reduction: number, excess: number) => `${grade}ランクは合計ペナルティ${maximum}秒以下です。次回は${reduction}秒分改善してください。現在と同じヒント・ミス数では、それだけで上限を${excess}秒超えるため、回数も減らす必要があります。`,
+    rankHighestHeading: '最高ランク S',
+    rankHighestMessage: 'Sランク達成です。合計ペナルティを299秒以下に抑えました。',
+    rankNextHeading: (grade: string) => `次は${grade}ランク`,
+    rankNextMessage: (grade: string, maximum: number, reduction: number, time: string) => `${grade}ランクは合計ペナルティ${maximum}秒以下です。次回は${reduction}秒分改善し、同じヒント・ミス数なら${time}以内のクリアが目安です。`,
     sharePuzzle: '同じ問題を共有',
     subtitle: '一意解の盤面を完成しました。',
     title: 'おーとまちっく数独',
+    technique: '最難手筋',
+    techniques: {
+      'hidden-pair': '隠れペア',
+      'hidden-single': '隠れシングル',
+      'locked-candidate': 'ロック候補',
+      'naked-pair': '裸のペア',
+      'naked-single': '裸のシングル',
+      'none': 'なし',
+      'search': '探索',
+      'simple-chain': '単純連鎖',
+      'x-wing': 'X-Wing',
+      'xy-wing': 'XY-Wing',
+    },
     undo: '元に戻す',
     undoTooltip: '直前の数字またはメモを元に戻す',
+    variant: '問題タイプ',
+    variantDescriptions: {
+      classic: '従来型の一意解問題',
+      killer: 'ケージの合計値も使う',
+      symmetric: '180度回転対称・ペア最小',
+    },
+    variants: { classic: 'クラシック', killer: 'キラー', symmetric: '対称' },
   },
   en: {
-    begin: (difficulty: string) => `Start ${difficulty}`,
+    begin: (difficulty: string, variant: string) => `Start ${difficulty} · ${variant}`,
     board: 'Sudoku board',
     checkMessage: 'The red numbers are duplicated.',
+    cageTechnique: 'Cage sums',
     clearMessage: 'Correct. Well done!',
     confirmMessage: 'Your current progress will end and a new puzzle will be generated. This cannot be undone.',
-    confirmTitle: 'Change difficulty?',
+    confirmTitle: 'Change puzzle settings?',
     correctTitle: 'Puzzle solved',
     difficulties: { beginner: 'Beginner', easy: 'Easy', normal: 'Normal', hard: 'Hard', expert: 'Expert' },
     difficulty: 'Difficulty',
@@ -114,15 +162,43 @@ const SUDOKU_COPY = {
     input: 'Number input',
     inputDigit: (digit: number, noteMode: boolean) => `Enter ${digit} as ${noteMode ? 'a small note' : 'a large answer'}. Right-click always enters a note.`,
     keyboardMessage: 'Number keys and arrow keys are also supported.',
+    metricCage: 'CAGE',
+    metricClue: 'CLUE',
+    eliminations: 'Candidate eliminations',
     newPuzzle: 'New puzzle',
     nextPuzzle: 'Next puzzle',
     note: 'Notes',
     noteMessage: 'You can record multiple candidate numbers.',
+    rankActionsMessage: (grade: string, maximum: number, reduction: number, excess: number) => `Grade ${grade} requires a total penalty of ${maximum} seconds or less. Improve by ${reduction} seconds next time. The same hint and mistake penalties alone exceed the target by ${excess} seconds, so reduce those actions too.`,
+    rankHighestHeading: 'Top grade S',
+    rankHighestMessage: 'You earned grade S by keeping the total penalty at 299 seconds or less.',
+    rankNextHeading: (grade: string) => `Next: grade ${grade}`,
+    rankNextMessage: (grade: string, maximum: number, reduction: number, time: string) => `Grade ${grade} requires a total penalty of ${maximum} seconds or less. Improve by ${reduction} seconds next time; with the same hints and mistakes, aim to finish within ${time}.`,
     sharePuzzle: 'Share this puzzle',
     subtitle: 'You completed a uniquely solvable puzzle.',
     title: 'Automatic Sudoku',
+    technique: 'Hardest technique',
+    techniques: {
+      'hidden-pair': 'Hidden pair',
+      'hidden-single': 'Hidden single',
+      'locked-candidate': 'Locked candidate',
+      'naked-pair': 'Naked pair',
+      'naked-single': 'Naked single',
+      'none': 'None',
+      'search': 'Search',
+      'simple-chain': 'Simple chain',
+      'x-wing': 'X-Wing',
+      'xy-wing': 'XY-Wing',
+    },
     undo: 'Undo',
     undoTooltip: 'Undo the previous answer or note',
+    variant: 'Puzzle type',
+    variantDescriptions: {
+      classic: 'Traditional uniquely solvable puzzle',
+      killer: 'Also use cage sums',
+      symmetric: '180° rotational, pair-minimal',
+    },
+    variants: { classic: 'Classic', killer: 'Killer', symmetric: 'Symmetric' },
   },
 } as const
 
@@ -134,11 +210,16 @@ function isSudokuDifficulty(value: string | null): value is SudokuDifficulty {
   return value === 'beginner' || value === 'easy' || value === 'normal' || value === 'hard' || value === 'expert'
 }
 
+function isSudokuVariant(value: string | null): value is SudokuVariant {
+  return value === 'classic' || value === 'killer' || value === 'symmetric'
+}
+
 function createSession(
   difficulty: SudokuDifficulty,
   seed = nextSeed(),
+  variant: SudokuVariant = 'classic',
 ): SudokuSession {
-  const puzzle = generateSudoku(difficulty, seed)
+  const puzzle = generateSudoku(difficulty, seed, variant)
   return {
     elapsedSeconds: 0,
     hintsUsed: 0,
@@ -156,15 +237,31 @@ function createInitialSession(): SudokuSession {
   const difficulty: SudokuDifficulty = isSudokuDifficulty(requestedDifficulty)
     ? requestedDifficulty
     : 'normal'
-  return createSession(difficulty, shared?.seed)
+  const requestedVariant = shared?.variant ?? null
+  const variant: SudokuVariant = isSudokuVariant(requestedVariant)
+    ? requestedVariant
+    : 'classic'
+  return createSession(difficulty, shared?.seed, variant)
 }
 
-function getSudokuGrade(session: SudokuSession): string {
-  const penalty = session.elapsedSeconds + session.hintsUsed * 90 + session.mistakes * 35
-  if (penalty < 300) return 'S'
-  if (penalty < 600) return 'A'
-  if (penalty < 1000) return 'B'
-  return 'C'
+function createKillerCellInfo(cages: readonly KillerCage[]): Map<number, KillerCellInfo> {
+  const result = new Map<number, KillerCellInfo>()
+  for (const cage of cages) {
+    const cells = new Set(cage.cells)
+    const anchor = Math.min(...cage.cells)
+    for (const cell of cage.cells) {
+      const row = Math.floor(cell / 9)
+      const column = cell % 9
+      result.set(cell, {
+        bottom: row === 8 || !cells.has(cell + 9),
+        left: column === 0 || !cells.has(cell - 1),
+        right: column === 8 || !cells.has(cell + 1),
+        sum: cell === anchor ? cage.sum : null,
+        top: row === 0 || !cells.has(cell - 9),
+      })
+    }
+  }
+  return result
 }
 
 function isPeer(first: number, second: number): boolean {
@@ -211,20 +308,80 @@ export function SudokuGame() {
     return firstEmpty >= 0 ? firstEmpty : 0
   })
   const selectedRef = useRef(selected)
+  const boardFocusRef = useRef<HTMLDivElement>(null)
   const [noteMode, setNoteMode] = useState(false)
   const [placementGuide, setPlacementGuide] = useState(false)
   const [sameNumberHighlight, setSameNumberHighlight] = useState(false)
-  const [pendingDifficulty, setPendingDifficulty] = useState<SudokuDifficulty | null>(null)
+  const [pendingSetup, setPendingSetup] = useState<PendingSudokuSetup | null>(null)
   const [history, setHistory] = useState<SudokuHistoryEntry[]>([])
   const [pulseCell, setPulseCell] = useState<number | null>(null)
   const [resultOpen, setResultOpen] = useState(session.status === 'won')
   const { playEffect, preferences } = useAppExperience()
   const copy = getLocalizedCopy(preferences.language, SUDOKU_COPY)
-  const { countdown, isCountingDown, restartCountdown } = useGameCountdown(
+  const {
+    beginCountdown,
+    countdown,
+    isCountingDown,
+    restartCountdown,
+    waitingToStart,
+  } = useGameCountdown(
     session.elapsedSeconds === 0 && session.status === 'playing',
   )
-  const conflicts = getConflicts(session.values)
+  const currentVariant = session.puzzle.variant ?? 'classic'
+  const cages = session.puzzle.cages ?? []
+  const cageCellInfo = createKillerCellInfo(cages)
+  const conflicts = new Set([
+    ...getConflicts(session.values),
+    ...getCageConflicts(session.values, cages),
+  ])
+  const hardestTechnique = (session.puzzle.analysis.hardestTechnique ?? 'none') as
+    HumanTechnique | 'none' | 'search'
+  const hardestTechniqueCount = currentVariant === 'killer'
+    ? cages.length
+    : hardestTechnique === 'search'
+      ? session.puzzle.analysis.guessBranches
+      : hardestTechnique === 'none'
+        ? 0
+        : session.puzzle.analysis.techniques?.[hardestTechnique] ?? 0
+  const techniqueLabel = currentVariant === 'killer'
+    ? copy.cageTechnique
+    : copy.techniques[hardestTechnique]
+  const rank = calculateSudokuRank(
+    session.elapsedSeconds,
+    session.hintsUsed,
+    session.mistakes,
+  )
+  const rankProgress = rank.nextGrade === null || rank.nextMaximum === null
+    ? { heading: copy.rankHighestHeading, message: copy.rankHighestMessage }
+    : rank.targetSecondsWithSameActions !== null && rank.targetSecondsWithSameActions >= 0
+      ? {
+        heading: copy.rankNextHeading(rank.nextGrade),
+        message: copy.rankNextMessage(
+          rank.nextGrade,
+          rank.nextMaximum,
+          rank.reductionNeeded,
+          formatElapsedTime(rank.targetSecondsWithSameActions),
+        ),
+      }
+      : {
+        heading: copy.rankNextHeading(rank.nextGrade),
+        message: copy.rankActionsMessage(
+          rank.nextGrade,
+          rank.nextMaximum,
+          rank.reductionNeeded,
+          Math.abs(rank.targetSecondsWithSameActions ?? 0),
+        ),
+      }
   const selectedValue = session.values[selected]
+
+  function beginGame(): void {
+    boardFocusRef.current?.scrollIntoView({
+      behavior: 'auto',
+      block: 'center',
+      inline: 'nearest',
+    })
+    window.setTimeout(beginCountdown, 0)
+  }
 
   function selectCell(index: number): void {
     selectedRef.current = index
@@ -244,13 +401,16 @@ export function SudokuGame() {
     return () => window.clearInterval(timer)
   }, [isCountingDown, session.status, setSession])
 
-  function startNewGame(difficulty: SudokuDifficulty): void {
+  function startNewGame(
+    difficulty: SudokuDifficulty,
+    variant: SudokuVariant = currentVariant,
+  ): void {
     window.history.replaceState(
       null,
       '',
       `${window.location.pathname}${window.location.search}#/sudoku`,
     )
-    const next = createSession(difficulty)
+    const next = createSession(difficulty, undefined, variant)
     setSession(next)
     setHistory([])
     setNoteMode(false)
@@ -264,7 +424,21 @@ export function SudokuGame() {
 
   function requestDifficultyChange(difficulty: SudokuDifficulty): void {
     if (difficulty !== session.puzzle.difficulty) {
-      setPendingDifficulty(difficulty)
+      if (waitingToStart) {
+        startNewGame(difficulty, currentVariant)
+      } else {
+        setPendingSetup({ difficulty, variant: currentVariant })
+      }
+    }
+  }
+
+  function requestVariantChange(variant: SudokuVariant): void {
+    if (variant !== currentVariant) {
+      if (waitingToStart) {
+        startNewGame(session.puzzle.difficulty, variant)
+      } else {
+        setPendingSetup({ difficulty: session.puzzle.difficulty, variant })
+      }
     }
   }
 
@@ -425,7 +599,11 @@ export function SudokuGame() {
 
   return (
     <section className={`game-workspace sudoku-workspace ${isCountingDown ? 'game-paused' : ''}`} aria-labelledby="sudoku-title">
-      <CountdownOverlay value={countdown} />
+      <CountdownOverlay
+        onStart={beginGame}
+        value={countdown}
+        waitingToStart={waitingToStart}
+      />
       <header className="game-heading">
         <div>
           <p className="eyebrow">2006 / 2011 REBUILD</p>
@@ -434,7 +612,10 @@ export function SudokuGame() {
         <div className="game-metrics" aria-label={copy.gameInfo}>
           <span><strong>{formatElapsedTime(session.elapsedSeconds)}</strong> TIME</span>
           <span><strong>{session.hintsUsed}</strong> HINT</span>
-          <span><strong>{session.puzzle.puzzle.filter(Boolean).length}</strong> CLUE</span>
+          <span>
+            <strong>{currentVariant === 'killer' ? cages.length : session.puzzle.puzzle.filter(Boolean).length}</strong>
+            {currentVariant === 'killer' ? copy.metricCage : copy.metricClue}
+          </span>
         </div>
       </header>
 
@@ -457,13 +638,14 @@ export function SudokuGame() {
         <div className="toolbar-inline">
           <GameShareButton
             difficulty={session.puzzle.difficulty}
+            extraParameters={{ variant: currentVariant }}
             game="sudoku"
             seed={session.puzzle.seed}
             title={copy.title}
           />
           <button
             className="command-button"
-            onClick={() => startNewGame(session.puzzle.difficulty)}
+            onClick={() => startNewGame(session.puzzle.difficulty, currentVariant)}
             type="button"
           >
             <RefreshCw aria-hidden="true" size={17} /> {copy.newPuzzle}
@@ -471,17 +653,50 @@ export function SudokuGame() {
         </div>
       </div>
 
+      <div className="sudoku-variant-row">
+        <span>{copy.variant}</span>
+        <div className="segmented-control" aria-label={copy.variant}>
+          {(Object.keys(copy.variants) as SudokuVariant[]).map((variant) => (
+            <button
+              aria-pressed={currentVariant === variant}
+              className={currentVariant === variant ? 'active' : ''}
+              key={variant}
+              onClick={() => requestVariantChange(variant)}
+              type="button"
+            >
+              {copy.variants[variant]}
+              <small>{copy.variantDescriptions[variant]}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="sudoku-analysis-row" aria-label={copy.technique}>
+        <span><strong>{session.puzzle.analysis.rating}</strong> RATING</span>
+        <span>
+          <strong>
+            {techniqueLabel} ×{hardestTechniqueCount}
+          </strong>
+          {copy.technique}
+        </span>
+        <span>
+          <strong>{session.puzzle.analysis.candidateEliminations ?? 0}</strong>
+          {copy.eliminations}
+        </span>
+      </div>
+
       <GameHowTo game="sudoku" />
 
-      <div className="sudoku-layout">
+      <div className="sudoku-layout" ref={boardFocusRef}>
         <div className="sudoku-board" role="grid" aria-label={copy.board}>
           {session.values.map((value, index) => {
             const given = session.puzzle.puzzle[index] !== 0
+            const cageInfo = cageCellInfo.get(index)
             const peer = index !== selected && isPeer(index, selected)
             const sameValue = sameNumberHighlight &&
               selectedValue !== 0 && value === selectedValue && index !== selected
             const candidates = placementGuide
-              ? getCandidates(session.values, index)
+              ? getCandidates(session.values, index, cages)
               : []
             const classes = [
               'sudoku-cell',
@@ -490,6 +705,11 @@ export function SudokuGame() {
               peer ? 'peer' : '',
               sameValue ? 'same-value' : '',
               conflicts.has(index) ? 'conflict' : '',
+              cageInfo ? 'killer-cage' : '',
+              cageInfo?.top ? 'cage-top' : '',
+              cageInfo?.right ? 'cage-right' : '',
+              cageInfo?.bottom ? 'cage-bottom' : '',
+              cageInfo?.left ? 'cage-left' : '',
               pulseCell === index ? 'action-pulse' : '',
               (index + 1) % 3 === 0 && index % 9 !== 8 ? 'box-right' : '',
               Math.floor(index / 9) % 3 === 2 && index < 72 ? 'box-bottom' : '',
@@ -525,6 +745,9 @@ export function SudokuGame() {
                 tabIndex={index === selected ? 0 : -1}
                 type="button"
               >
+                {cageInfo?.sum !== null && cageInfo?.sum !== undefined ? (
+                  <span aria-hidden="true" className="cage-sum">{cageInfo.sum}</span>
+                ) : null}
                 {value !== 0 ? (
                   <span className="cell-value">{value}</span>
                 ) : session.notes[index] !== 0 ? (
@@ -668,16 +891,18 @@ export function SudokuGame() {
         </aside>
       </div>
       <ResultModal
-        grade={getSudokuGrade(session)}
+        grade={rank.grade}
         onClose={() => setResultOpen(false)}
-        onPrimary={() => startNewGame(session.puzzle.difficulty)}
+        onPrimary={() => startNewGame(session.puzzle.difficulty, currentVariant)}
         open={resultOpen}
         primaryLabel={copy.nextPuzzle}
+        rankProgress={rankProgress}
         shareAction={(
           <GameShareButton
             buttonLabel={copy.sharePuzzle}
             className="result-share-button"
             difficulty={session.puzzle.difficulty}
+            extraParameters={{ variant: currentVariant }}
             game="sudoku"
             seed={session.puzzle.seed}
             title={copy.title}
@@ -686,6 +911,11 @@ export function SudokuGame() {
         stats={[
           { label: 'TIME', value: formatElapsedTime(session.elapsedSeconds) },
           { label: 'DIFFICULTY', value: copy.difficulties[session.puzzle.difficulty] },
+          { label: 'TYPE', value: copy.variants[currentVariant] },
+          {
+            label: 'TECHNIQUE',
+            value: `${techniqueLabel} ×${hardestTechniqueCount}`,
+          },
           { label: 'RATING', value: String(session.puzzle.analysis.rating) },
           { label: 'HINT / MISS', value: `${session.hintsUsed} / ${session.mistakes}` },
         ]}
@@ -693,16 +923,19 @@ export function SudokuGame() {
         title={copy.correctTitle}
       />
       <ConfirmationModal
-        confirmLabel={copy.begin(pendingDifficulty ? copy.difficulties[pendingDifficulty] : '')}
+        confirmLabel={copy.begin(
+          pendingSetup ? copy.difficulties[pendingSetup.difficulty] : '',
+          pendingSetup ? copy.variants[pendingSetup.variant] : '',
+        )}
         message={copy.confirmMessage}
-        onCancel={() => setPendingDifficulty(null)}
+        onCancel={() => setPendingSetup(null)}
         onConfirm={() => {
-          if (pendingDifficulty) {
-            startNewGame(pendingDifficulty)
+          if (pendingSetup) {
+            startNewGame(pendingSetup.difficulty, pendingSetup.variant)
           }
-          setPendingDifficulty(null)
+          setPendingSetup(null)
         }}
-        open={pendingDifficulty !== null}
+        open={pendingSetup !== null}
         title={copy.confirmTitle}
       />
     </section>

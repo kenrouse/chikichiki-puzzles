@@ -6,6 +6,7 @@ export interface SharedGameParameters {
   game: ShareableGameId
   guessFree: boolean | null
   seed: number
+  variant: string | null
 }
 
 function parseOptionalUint32(value: string | null): number | null {
@@ -40,6 +41,7 @@ export function parseSharedGameHash(hash: string): SharedGameParameters | null {
     game: path,
     guessFree: logic === '1' ? true : logic === '0' ? false : null,
     seed: seed >>> 0,
+    variant: parameters.get('variant'),
   }
 }
 
