@@ -664,6 +664,38 @@ main {
   line-height: 1.65;
 }
 
+.sudoku-strategy {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.sudoku-strategy > p {
+  max-width: 940px;
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.sudoku-strategy aside {
+  margin-top: 16px;
+  padding: 13px 15px;
+  border-left: 3px solid var(--sun);
+  background: color-mix(in srgb, var(--sun) 13%, var(--paper-strong));
+}
+
+.sudoku-strategy aside strong {
+  font: 700 11px/1.2 var(--font-display);
+}
+
+.sudoku-strategy aside p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
 .game-how-to-restore {
   justify-content: flex-end;
   margin: -6px 0 16px;

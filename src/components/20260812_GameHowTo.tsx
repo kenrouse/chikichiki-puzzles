@@ -45,6 +45,20 @@ const HOW_TO_COPY = {
         '各行、各列、太線で囲まれた3 × 3のブロックに、1〜9を1回ずつ入れます。同じ数字が重なると赤く表示されます。',
         '候補を残したいときは「メモ」へ切り替えます。ガイド、同じ数字の強調、ヒント、元に戻す操作も利用できます。すべて正しく埋めればクリアです。',
       ],
+      strategy: {
+        generator: '生成器は完成盤から数字を1つずつ抜き、そのたびに解が1つだけかを探索します。「入門」はさらに、候補が1つのマスを埋め続けるだけで完走できることを検査しています。「やさしい」以上は一意解を保証しますが、特定の人間向け手筋だけで解ける保証はありません。ふつう・むずかしい・エキスパートは、それぞれ2・3・6個の候補から、裸のシングルと隠れシングルを適用した後の未解決数や、探索の分岐数・ノード数を含むratingが高い問題を選びます。',
+        generatorTitle: '問題生成との関係',
+        intro: '当てずっぽうで数字を置く前に、次の順序で候補を狭めます。数字を1つ置くたびに盤面の条件が変わるので、最初から同じ順序を繰り返すのが基本です。',
+        steps: [
+          '候補を作る: 空欄ごとに、同じ行、同じ列、同じ3 × 3ブロックにすでにある数字を除外します。残った数字をメモに記録します。',
+          '裸のシングルを探す: あるマスの候補が1つだけなら、その数字で確定です。「入門」は、この手順を繰り返すだけで必ず最後まで解けます。',
+          '隠れシングルを探す: 1つのマスに候補が複数あっても、行・列・ブロックの中で、ある数字を置ける場所がそのマスしかなければ確定です。現行の難易度分析も、裸のシングルの次にこの手筋を使います。',
+          '確定した場所の周囲を見直す: 数字を置いた行、列、ブロックからその候補を消し、新しく生まれた裸／隠れシングルを探します。盤面全体を何度も眺めるより、変化した3つの範囲から確認すると効率的です。',
+          '基本手筋で止まったら候補同士を見る: 同じ2候補が2マスだけを占めるペアや、ブロック内の候補が1つの行・列に限定されるロック候補を探すと、ほかのマスから候補を消せます。ただし、現行の生成器は特定の高度手筋で解けることまでは分類・保証していません。',
+          '矛盾を避けて進める: 一意解は保証されていますが、上位難易度のratingにはバックトラック探索量も含まれます。これは難しさを測るための内部指標で、攻略時に推測を勧めるものではありません。論理的な候補消去で進め、必要な場合だけヒントを使います。',
+        ],
+        title: '論理的な攻略手順',
+      },
       summary: '9 × 9の盤面を、同じ行・列・3 × 3ブロックで数字が重複しないように1〜9で埋めるゲームです。',
       tips: ['空欄を選んで1〜9を入力', '行・列・3 × 3で重複させない', 'すべて正しく埋めればクリア'],
       title: '数独の遊び方',
@@ -82,6 +96,20 @@ const HOW_TO_COPY = {
         'Place 1 through 9 exactly once in every row, column, and bold 3 × 3 box. Duplicate numbers are shown in red.',
         'Switch to Notes to record candidates. You can also use the placement guide, matching-number highlight, hint, and undo controls. Fill every cell correctly to win.',
       ],
+      strategy: {
+        generator: 'The generator starts with a solved board and removes one number at a time, searching after every removal to ensure that exactly one solution remains. Beginner also verifies that repeatedly filling cells with one candidate can complete the whole puzzle. Easy and above guarantee a unique solution, but not completion with a particular set of human techniques. Normal, Hard, and Expert choose the highest-rated puzzle from 2, 3, and 6 candidates. The rating includes cells left after naked and hidden singles plus backtracking branches and search nodes.',
+        generatorTitle: 'How generation affects solving',
+        intro: 'Before guessing a number, narrow the candidates in this order. Every confirmed number changes the board, so the key habit is to repeat the same sequence after each placement.',
+        steps: [
+          'Build candidates: for each empty cell, eliminate every number already present in its row, column, and 3 × 3 box. Record the remaining numbers as notes.',
+          'Find naked singles: when a cell has only one candidate, that number is forced. Every Beginner puzzle is guaranteed to finish by repeating this technique.',
+          'Find hidden singles: a cell may have several candidates, but if one number has no other possible position in its row, column, or box, it is forced there. The current analyzer applies this after naked singles.',
+          'Rescan the affected units: after placing a number, remove it from candidates in the same row, column, and box. Check those three areas first for newly created naked or hidden singles.',
+          'When basic singles stop, compare candidates: a pair of cells holding the same two candidates can exclude those numbers elsewhere, while candidates confined to one row or column inside a box can form a locked candidate. The current generator does not classify or guarantee any particular advanced technique.',
+          'Progress without contradictions: every puzzle has one solution, but higher ratings also include backtracking search effort. That is an internal difficulty measurement, not a recommendation to guess. Continue eliminating candidates logically and use a hint only when needed.',
+        ],
+        title: 'A logical solving sequence',
+      },
       summary: 'Fill the 9 × 9 grid with 1 through 9 without repeating a number in any row, column, or 3 × 3 box.',
       tips: ['Select a cell and enter 1–9', 'No repeats in rows, columns, or boxes', 'Fill every cell correctly to win'],
       title: 'How to play Sudoku',
@@ -155,6 +183,19 @@ export function GameHowTo({ game }: { game: HowToGameId }) {
           <ol>
             {gameCopy.steps.map((step) => <li key={step}>{step}</li>)}
           </ol>
+          {'strategy' in gameCopy ? (
+            <section className="sudoku-strategy">
+              <h3>{gameCopy.strategy.title}</h3>
+              <p>{gameCopy.strategy.intro}</p>
+              <ol>
+                {gameCopy.strategy.steps.map((step) => <li key={step}>{step}</li>)}
+              </ol>
+              <aside>
+                <strong>{gameCopy.strategy.generatorTitle}</strong>
+                <p>{gameCopy.strategy.generator}</p>
+              </aside>
+            </section>
+          ) : null}
         </div>
       ) : null}
     </section>
