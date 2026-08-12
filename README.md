@@ -1,49 +1,67 @@
-# ちきちきパズルズ
+# Chikichiki Puzzles
 
-2006年から2009年にNTTドコモのiアプリとして作った3つのパズルゲームを、2026年のWeb技術で再構築したインストール可能なPWAです。
+**English** | [日本語](./README.ja.md)
 
-- **おーとまちっく数独**: Algorithm X / Dancing Linksによる一意解判定、クラシック／180度回転対称のペア最小／Killerの3問題タイプ、裸のシングルだけで完走できる「入門」を含む5段階、高度手筋rating、確定／メモ、Undo、ヒント、同数字ハイライト
-- **ちきちきまいんすいーぱ。**: 初手安全、タッチ／ペン用の開く／マーク切替、右クリック／長押しによる旗・?・解除、ドラッグ誤操作防止、画面に合わせる倍率、連鎖スコア、ベストスコア／タイム、踏んだ地雷の識別、推測不要モード
-- **四川省**: 2回以内に曲がる経路探索、必ず解ける配牌、経路アニメーション、手動ズームと画面に合わせる倍率、クリア後の初期盤面閲覧、mobility評価付き3段階
+Installable PWA rebuilds of three puzzle games originally created as NTT DOCOMO i-appli titles between 2006 and 2009.
 
-トップURLには3ゲームを選べるタイトル画面を表示し、固定URLをQRコード、Web Share、コピーで共有できます。全ゲームでseed付きURLによる盤面共有、終了時のSNS共有、開始カウントダウン、成績画面、盤面確認後の成績再表示、難易度変更前の確認、4つのカラーテーマ、生成BGM、効果音、音量調整に対応しています。集中モードではヘッダー、見出し、凡例、説明を隠して盤面を広く表示し、任意でブラウザー全画面へ切り替えられます。マインスイーパと四川省の盤面内スクロールが端へ達すると、ページ全体のスクロールへ自然に引き継がれます。既定ONの「ペン入力を安定化」では、現在の入力がペンのときだけゲーム内ボタン上のブラウザースクロールを抑止し、指でのスクロールは維持します。BGMは静かな音色を保ちながら、100%では十分に聞き取れるゲインへ調整しています。盤面や数字パッドはツールチップの代わりにhover反応を表示し、その他の操作要素のツールチップは設定で無効化できます。既定OFFのマウスマーカーと追加アニメーションも個別に切り替えられます。ダイアログは盤面より前面に固定されます。
+[![Chikichiki Puzzles title screen](./docs/assets/20260812_chikichiki-puzzles.png)](https://kenrouse.github.io/chikichiki-puzzles/)
 
-新規ゲームはSTART待機状態で開きます。開始前に設定・難易度・問題タイプを確認でき、STARTを押すと盤面を画面中央へ移動して3カウントを始めます。保存済みの途中ゲームはSTART待機を挟まず再開します。
+## Play
 
-各ゲーム画面には、初めて遊ぶ人向けの短い遊び方を表示します。「詳しく見る」で操作とクリア条件を展開でき、説明を隠した後も「遊び方」ボタンから再表示できます。表示状態はゲーム別に端末へ保存します。ヘッダーまたは設定画面から日本語／Englishを切り替えられ、ゲーム、読み上げラベル、共有・設定・結果ダイアログ、制作ノートが現在の言語へ追従します。
+**[Open Chikichiki Puzzles](https://kenrouse.github.io/chikichiki-puzzles/)**
 
-遊び方の詳細にはランク式とS/A/B/Cの閾値を掲載します。結果画面には現在の成績から次ランクまでに必要な短縮秒数または追加点数を表示します。数独は時間・ヒント・ミス、マインスイーパは安全マス数に対するスコア効率、四川省は時間・シャッフル数で評価します。
+After the first visit, the app can run offline. Game progress, preferences, and records stay in the browser's local storage and are not sent to an external service.
 
-マインスイーパの推測不要モードは、公開済みの数字から安全マスと地雷を確定するソルバーで候補盤面を検証し、最後まで論理的に解ける盤面だけを採用します。OFFにすると初手と周囲だけを安全にしたクラシック配置へ戻ります。共有URLにはseed、初手、生成モードを含め、同じ地雷配置と初期展開を再現します。
+## Games
 
-## 公開サイト
+- **Automatic Sudoku**: Uniquely solvable Classic puzzles verified with Algorithm X / Dancing Links, five difficulty levels including a Beginner level guaranteed to finish with naked singles, human-technique ratings, Answer and Notes input, undo, hints, candidate guidance, and matching-number highlights. Symmetric and Killer generators remain available as opt-in preview features under Settings while their gameplay is refined.
+- **Chikichiki Minesweeper**: A safe first move, guess-free and classic generation selected under Game settings, Open and Mark touch modes, right-click and hold marking, drag protection, fit-to-screen sizing, cascade scoring, best scores and times, and distinct indicators for the actual mine and the mine that ended the game.
+- **Shisen-Sho**: Matching-tile paths with at most two turns, guaranteed-solvable layouts, path animation, manual zoom and fit-to-screen sizing, initial-board review after a clear, and three difficulty levels based on mobility.
 
-[https://kenrouse.github.io/chikichiki-puzzles/](https://kenrouse.github.io/chikichiki-puzzles/)
+## Highlights
 
-初回アクセス後はオフラインでも遊べます。ゲームの進行、設定、記録はブラウザーのローカルストレージにのみ保存し、外部へ送信しません。
+- Deterministic seeded generation and shareable URLs, QR codes, Web Share, and copy actions.
+- Japanese and English UI, instructions, ARIA labels, dialogs, and in-app design notes.
+- Mouse, touch, pen, and keyboard input with accessible focus states and reduced-motion support.
+- Local save and resume, offline PWA support, four color themes, generated BGM, sound effects, and independent volume controls.
+- Fullscreen and focus modes, responsive board fitting, clear ranking rules, and next-grade guidance on result screens.
+- New boards are generated only when play is confirmed, then covered by an opaque three-second countdown so the puzzle is not exposed before play begins. Saved games resume without another countdown.
+- Visible labels and tooltips have separate roles: labeled controls receive extra context only when useful, while icon-only controls retain concise accessible names.
 
-## 技術構成
+## Language Support
+
+The app has first-class Japanese and English localization. This file is the default English repository entry point; [README.ja.md](./README.ja.md) is the maintained Japanese counterpart.
+
+Code identifiers and APIs use English. Detailed engineering documents in [`docs/`](./docs/README.md) are currently maintained in Japanese as the source of truth; browser translation can assist with languages that do not yet have maintained documentation.
+
+## Technology
 
 - React 19 / TypeScript 6 / Vite 8
 - `vite-plugin-pwa` / Workbox
 - Web Audio API / `qrcode.react`
-- Vitest
+- Vitest / ESLint
 - GitHub Actions / GitHub Pages
 
-ゲームルールはUIから独立した純TypeScriptとして実装し、同じseedから同じ盤面を再現できるようにしています。
+Game rules and generation engines are pure TypeScript modules independent of the React UI. The same seed and generation options reproduce the same board.
 
-詳細文書は[Documentation](./docs/README.md)から参照できます。旧版から継承した考え方、現行の生成アルゴリズム、公平性、入力、PWA、検証・公開の判断は[Design decisions](./docs/design-decisions.md)、未実装候補は[Roadmap](./docs/roadmap.md)に分けて記録しています。画面内の「制作ノート」では各ゲームの生成アルゴリズムを、「遊び方」ではルールと攻略手順を利用者向けに説明しています。
+## Documentation
 
-## 開発
+- [Documentation index](./docs/README.md)
+- [Design decisions](./docs/design-decisions.md)
+- [Roadmap](./docs/roadmap.md)
 
-Node.js 24以降とnpm 11以降を使用します。
+The in-app Design Notes explain generation algorithms for players, while each game's expandable How to play section covers rules, controls, strategies, and grade thresholds.
+
+## Development
+
+Use Node.js 24 or later and npm 11 or later.
 
 ```powershell
 npm ci
 npm run dev
 ```
 
-検証コマンド:
+Validation commands:
 
 ```powershell
 npm run lint
@@ -51,4 +69,4 @@ npm test
 npm run build
 ```
 
-本番ビルドはGitHub Pagesのプロジェクトパス `/chikichiki-puzzles/` を基底URLとして生成されます。
+The production build uses `/chikichiki-puzzles/` as its GitHub Pages base path.
