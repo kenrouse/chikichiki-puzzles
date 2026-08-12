@@ -1025,7 +1025,9 @@ export function ResultModal({
   return createPortal(
     <div className="result-backdrop">
       <section aria-labelledby="result-title" aria-modal="true" className="result-modal" onKeyDown={handleDialogKeyDown} ref={dialogRef} role="dialog" tabIndex={-1}>
-        <div aria-hidden="true" className="result-rays" />
+        <div aria-hidden="true" className="result-rays-clip">
+          <div className="result-rays" />
+        </div>
         <button aria-label={copy.closeResults} className="result-close" onClick={onClose} type="button">
           <X aria-hidden="true" />
         </button>
@@ -1033,7 +1035,7 @@ export function ResultModal({
         <div className="result-grade" aria-label={`${copy.grade} ${grade}`}>{grade}</div>
         <h2 id="result-title">{title}</h2>
         <span className="result-subtitle">{subtitle}</span>
-        <dl>
+        <dl className="result-stats">
           {stats.map((stat) => (
             <div key={stat.label}>
               <dt>{stat.label}</dt>

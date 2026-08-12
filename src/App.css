@@ -2520,10 +2520,19 @@ button:active,
 .result-modal {
   position: relative;
   width: min(570px, 100%);
-  padding: 34px;
+  padding: 28px 32px 24px;
   text-align: center;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+.result-rays-clip {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .result-rays {
@@ -2535,12 +2544,11 @@ button:active,
     transparent 8deg 20deg
   );
   animation: result-rays 24s linear infinite;
-  pointer-events: none;
 }
 
 @keyframes result-rays { to { transform: rotate(360deg); } }
 
-.result-modal > *:not(.result-rays) {
+.result-modal > *:not(.result-rays-clip) {
   position: relative;
   z-index: 1;
 }
@@ -2556,7 +2564,7 @@ button:active,
   width: 104px;
   height: 104px;
   place-items: center;
-  margin: 8px auto 18px;
+  margin: 6px auto 14px;
   border: 5px solid var(--sun);
   border-radius: 50%;
   color: var(--forest);
@@ -2564,6 +2572,55 @@ button:active,
   box-shadow: 0 0 0 8px color-mix(in srgb, var(--sun) 22%, transparent);
   font: 800 58px/1 var(--font-display);
   animation: grade-pop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+.result-subtitle {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.result-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 16px 0 0;
+  border-block: 1px solid var(--line);
+  background: var(--line);
+}
+
+.result-stats:has(> :nth-child(4):last-child) {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.result-stats > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 7px;
+  background: color-mix(in srgb, var(--paper-strong) 94%, var(--mint));
+}
+
+.result-stats dt {
+  color: var(--muted);
+  font: 700 8px/1 var(--font-display);
+}
+
+.result-stats dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font: 700 14px/1.1 var(--font-display);
+}
+
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 
@@ -3081,6 +3138,8 @@ button:active,
   .share-dialog,
   .result-modal { max-height: calc(100svh - 16px); }
   .result-modal { padding: 28px 16px 20px; }
+  .result-stats,
+  .result-stats:has(> :nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .countdown-overlay span { font-size: 94px; }
   .tool-row { grid-template-columns: repeat(5, 1fr); }
   .guide-hero h1 { font-size: 40px; }
