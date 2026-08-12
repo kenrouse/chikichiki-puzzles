@@ -12,7 +12,6 @@ import {
   MousePointer2,
   RefreshCw,
   Scan,
-  ShieldCheck,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -26,6 +25,7 @@ import {
   useAppExperience,
   useGameCountdown,
 } from '../../experience/20260811_AppExperience'
+import { readMineGuessFreePreference } from '../../experience/20260812_gamePreferences'
 import { formatElapsedTime, useStoredState } from '../../lib/storage'
 import { calculateMinesweeperRank } from '../20260812_ranking'
 import { fitGridCellSize } from '../20260812_viewSizing'
@@ -95,7 +95,6 @@ const MINE_COPY = {
     actualMineTooltip: 'ゲーム終了時に赤く表示される、実際に配置された地雷',
     generateAndStart: (difficulty: string) => `${difficulty}を生成して開始`,
     cleared: 'すべての安全なマスを開きました。',
-    classic: 'オリジナル同様、局面によって推測が必要です。',
     confirmMessage: '選択した難易度で新しい地雷原を生成し、3秒カウントダウン後に開始します。現在の盤面とスコアは終了し、この操作は元に戻せません。',
     confirmTitle: '難易度を変更しますか？',
     detonated: '黄色い輪',
@@ -110,11 +109,6 @@ const MINE_COPY = {
     gameOver: '地雷を開きました。新しい盤面でもう一度。',
     fitBoard: '画面に合わせる',
     fitBoardTooltip: '盤面全体が現在の画面に収まるセルサイズへ調整',
-    guessFree: '推測不要',
-    guessFreeDescription: '論理だけで解ける盤面',
-    guessFreeLabel: '推測不要モード',
-    guessFreeMessage: '数字から確定できる手だけで最後まで進めます。',
-    guessFreeTooltip: 'ONでは公開された数字だけで完走できる盤面を生成します。OFFでは初手安全のみのクラシック配置に戻ります',
     legend: '記号と色の説明',
     lostSubtitle: '地雷を開きました。スコアは次の挑戦へ持ち越されません。',
     markMode: 'マーク',
@@ -154,7 +148,6 @@ const MINE_COPY = {
     actualMineTooltip: 'A mine that was actually placed, shown in red after the game ends',
     generateAndStart: (difficulty: string) => `Generate and start ${difficulty}`,
     cleared: 'You opened every safe cell.',
-    classic: 'Like the original game, some positions may require a guess.',
     confirmMessage: 'Generate a new minefield at the selected difficulty and start it after a three-second countdown. Your current board and score will end and this cannot be undone.',
     confirmTitle: 'Change difficulty?',
     detonated: 'Yellow ring',
@@ -169,11 +162,6 @@ const MINE_COPY = {
     gameOver: 'You opened a mine. Try another board.',
     fitBoard: 'Fit to screen',
     fitBoardTooltip: 'Adjust cell size so the full board fits the current screen',
-    guessFree: 'Guess-free',
-    guessFreeDescription: 'Solvable by logic alone',
-    guessFreeLabel: 'Guess-free mode',
-    guessFreeMessage: 'Every move can be determined from the visible numbers.',
-    guessFreeTooltip: 'On generates boards solvable from visible numbers alone. Off returns to a classic layout that only guarantees a safe first move.',
     legend: 'Symbols and colors',
     lostSubtitle: 'You opened a mine. Your score does not carry over to the next attempt.',
     markMode: 'Mark',
@@ -255,7 +243,9 @@ function createInitialSession(): MineSession {
     ? shared.guessFree === true
       ? 'guess-free'
       : 'classic'
-    : 'guess-free'
+    : readMineGuessFreePreference()
+      ? 'guess-free'
+      : 'classic'
   return createSession(
     difficulty,
     shared?.seed,
@@ -313,7 +303,7 @@ export function MinesweeperGame() {
   const cascadeId = useRef(0)
   const boardFocusRef = useRef<HTMLDivElement>(null)
   const lastPointerType = useRef('mouse')
-  const { playEffect, preferences } = useAppExperience()
+  const { mineGuessFreeEnabled, playEffect, preferences } = useAppExperience()
   const copy = getLocalizedCopy(preferences.language, MINE_COPY)
   const locale = preferences.language === 'ja' ? 'ja-JP' : 'en-US'
   const {
@@ -424,7 +414,9 @@ export function MinesweeperGame() {
 
   function startNewGame(
     difficulty: MineDifficulty,
-    generationMode: MineGenerationMode = board.generationMode,
+    generationMode: MineGenerationMode = mineGuessFreeEnabled
+      ? 'guess-free'
+      : 'classic',
   ): void {
     window.history.replaceState(
       null,
@@ -739,34 +731,6 @@ export function MinesweeperGame() {
             <span><strong>{copy.markMode}</strong><small>{copy.markModeDescription}</small></span>
           </button>
         </div>
-      </div>
-
-      <div className="mine-mode-row">
-        <label
-          className="sound-toggle mine-mode-toggle"
-          data-tooltip={copy.guessFreeTooltip}
-        >
-          <ShieldCheck aria-hidden="true" />
-          <span>
-            <strong>{copy.guessFree}</strong>
-            <small>{copy.guessFreeDescription}</small>
-          </span>
-          <input
-            aria-label={copy.guessFreeLabel}
-            checked={board.generationMode === 'guess-free'}
-            onChange={(event) => startNewGame(
-              session.difficulty,
-              event.target.checked ? 'guess-free' : 'classic',
-            )}
-            type="checkbox"
-          />
-          <i aria-hidden="true" />
-        </label>
-        <p>
-          {board.generationMode === 'guess-free'
-            ? copy.guessFreeMessage
-            : copy.classic}
-        </p>
       </div>
 
       <div className="mine-legend" aria-label={copy.legend}>

@@ -55,7 +55,6 @@
 .focus-mode .sudoku-preview-active,
 .focus-mode .game-how-to,
 .focus-mode .game-how-to-restore,
-.focus-mode .mine-mode-row,
 .focus-mode .mine-legend,
 .focus-mode .game-message,
 .focus-mode .initial-board-banner {
@@ -810,13 +809,6 @@ main {
   gap: 4px;
 }
 
-.mine-mode-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: -8px 0 18px;
-}
-
 .mine-touch-mode {
   display: none;
   position: sticky;
@@ -872,38 +864,6 @@ main {
 :root[data-active-pointer='touch'] .mine-touch-mode,
 :root[data-active-pointer='pen'] .mine-touch-mode {
   display: block;
-}
-
-.mine-mode-row > p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.mine-mode-toggle {
-  min-width: 250px;
-  padding: 9px 11px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--paper-strong);
-  cursor: pointer;
-}
-
-.mine-mode-toggle > svg {
-  width: 18px;
-  height: 18px;
-  color: var(--forest);
-}
-
-.mine-mode-toggle > span {
-  display: grid;
-  gap: 3px;
-}
-
-.mine-mode-toggle small {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 500;
 }
 
 .game-message {
@@ -1891,16 +1851,6 @@ main {
     margin-top: -8px;
   }
 
-  .mine-mode-row {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .mine-mode-toggle {
-    min-width: 0;
-  }
-
   .app-footer {
     align-items: flex-start;
     flex-direction: column;
@@ -2415,12 +2365,12 @@ button:active,
   flex: 1;
 }
 
-.preview-feature-toggle > span {
+.settings-description-toggle > span {
   display: grid;
   gap: 4px;
 }
 
-.preview-feature-toggle small {
+.settings-description-toggle small {
   color: var(--muted);
   font-size: 9px;
   line-height: 1.45;

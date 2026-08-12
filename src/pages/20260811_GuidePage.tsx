@@ -30,7 +30,7 @@ const GUIDE_COPY = {
       title: '最初の 1 手が決まってから地雷を置く',
       intro: '盤面を開いた瞬間に、選んだマスと周囲8マスを安全領域として地雷を配置します。タッチ／ペンでは「開く／マーク」を選び、マークは旗、?、解除の順に切り替えます。長押しもマークのショートカットとして残します。指やペンが一定距離動いた場合はドラッグとして扱い、開封とマークをキャンセルします。',
       fairnessTitle: '公平性を先に定義する',
-      fairness: '推測不要モードでは、候補盤面を生成するたびに、公開された数字、残りの地雷数、制約同士の包含関係から安全マスと地雷を確定するソルバーを実行します。すべての安全マスを確定できた候補だけを採用するため、運に頼らず最後まで進めます。OFFにすると、初手と周囲だけを安全にするクラシック配置へ戻ります。',
+      fairness: '推測不要モードでは、候補盤面を生成するたびに、公開された数字、残りの地雷数、制約同士の包含関係から安全マスと地雷を確定するソルバーを実行します。すべての安全マスを確定できた候補だけを採用するため、運に頼らず最後まで進めます。アプリ設定の「ゲーム設定」でOFFにすると、次の盤面から初手と周囲だけを安全にするクラシック配置へ戻ります。',
     },
     shisen: {
       title: '位置、向き、曲がった回数を探索する',
@@ -72,7 +72,7 @@ const GUIDE_COPY = {
       title: 'Place mines after the first move is known',
       intro: 'When the first cell is opened, the game places mines while reserving it and its eight neighbors as safe. Touch and pen users choose Open or Mark; Mark cycles Flag, ?, and Clear. A hold remains a marking shortcut. Moving beyond the swipe threshold cancels both opening and marking.',
       fairnessTitle: 'Define fairness before generating the board',
-      fairness: 'Guess-free mode tests each candidate board with a solver that derives safe cells and mines from visible numbers, remaining mine count, and subset relationships between constraints. Only candidates that can be completed entirely by logic are accepted. Turning it off returns to classic generation, which guarantees only a safe first move and its neighbors.',
+      fairness: 'Guess-free mode tests each candidate board with a solver that derives safe cells and mines from visible numbers, remaining mine count, and subset relationships between constraints. Only candidates that can be completed entirely by logic are accepted. Turn it off under Game settings to use classic generation on the next board, which guarantees only a safe first move and its neighbors.',
     },
     shisen: {
       title: 'Search by position, direction, and turn count',

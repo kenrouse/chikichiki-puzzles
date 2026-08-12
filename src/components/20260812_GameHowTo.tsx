@@ -32,7 +32,7 @@ const HOW_TO_COPY = {
       steps: [
         '数字は、そのマスの周囲8マスにある地雷の数です。数字を手掛かりに安全なマスを開きます。',
         'タッチ／ペンでは「開く／マーク」を選びます。マークは旗 → ? → 解除の順に切り替わります。右クリックと長押しもマークのショートカットです。',
-        '開いた数字をもう一度押すと、周囲の旗が数字と同じ数のとき、残りをまとめて開きます。「画面に合わせる」で盤面全体を表示でき、地雷以外をすべて開けばクリアです。',
+        '開いた数字をもう一度押すと、周囲の旗が数字と同じ数のとき、残りをまとめて開きます。推測不要はアプリ設定の「ゲーム設定」で切り替え、次の盤面から適用されます。地雷以外をすべて開けばクリアです。',
       ],
       summary: '地雷を踏まないように、数字を手掛かりに安全なマスをすべて開くゲームです。最初に開くマスと周囲8マスは必ず安全です。',
       tips: ['数字は周囲8マスの地雷数', 'タッチは開く／マークを選択', '安全なマスをすべて開けばクリア'],
@@ -110,7 +110,7 @@ const HOW_TO_COPY = {
       steps: [
         'Each number tells you how many mines are hidden in the eight surrounding cells. Use the numbers to identify safe cells.',
         'Touch and pen users choose Open or Mark. Mark cycles Flag → ? → Clear. Right-click and hold remain marking shortcuts.',
-        'Press an open number again to open its remaining neighbors when the surrounding flag count matches. Use Fit to screen to show the full board. Open every safe cell to win.',
+        'Press an open number again to open its remaining neighbors when the surrounding flag count matches. Change Guess-free under Game settings; it applies to the next board. Open every safe cell to win.',
       ],
       summary: 'Open every safe cell without hitting a mine. Your first cell and its eight neighbors are always safe.',
       tips: ['Numbers count adjacent mines', 'Choose Open or Mark for touch', 'Open every safe cell to win'],

@@ -11,6 +11,7 @@ import {
 import { createPortal } from 'react-dom'
 import {
   FlaskConical,
+  Gamepad2,
   Languages,
   Music2,
   Palette,
@@ -24,6 +25,10 @@ import { useStoredState } from '../lib/storage'
 import { useDialogFocus } from '../lib/20260811_dialogFocus'
 import { getLocalizedCopy, type AppLanguage } from '../i18n/20260812_i18n'
 import { getBgmGain } from './20260811_audio'
+import {
+  MINE_GUESS_FREE_PREFERENCE_KEY,
+  readMineGuessFreePreference,
+} from './20260812_gamePreferences'
 
 export type Appearance = 'light' | 'dark'
 export type ColorTheme = 'archive' | 'ocean' | 'sakura' | 'arcade'
@@ -56,6 +61,7 @@ interface AppPreferences {
 }
 
 interface ExperienceContextValue {
+  mineGuessFreeEnabled: boolean
   playEffect: (effect: SoundEffect) => void
   preferences: AppPreferences
   setAppearance: (appearance: Appearance) => void
@@ -64,6 +70,7 @@ interface ExperienceContextValue {
   setColorTheme: (theme: ColorTheme) => void
   setEffectsEnabled: (enabled: boolean) => void
   setLanguage: (language: AppLanguage) => void
+  setMineGuessFreeEnabled: (enabled: boolean) => void
   setPenStabilizationEnabled: (enabled: boolean) => void
   setPointerMarkerEnabled: (enabled: boolean) => void
   setSfxEnabled: (enabled: boolean) => void
@@ -131,9 +138,12 @@ const EXPERIENCE_COPY = {
     displayEffects: '画面演出',
     english: 'English',
     grade: '評価',
+    gameSettings: 'ゲーム設定',
     japanese: '日本語',
     language: '表示言語',
     light: 'ライト',
+    mineGuessFree: 'マインスイーパの推測不要',
+    mineGuessFreeDescription: 'ONでは論理だけで解ける盤面、OFFでは推測が必要な場合があるクラシック盤面を生成します。次の盤面から適用されます。',
     penStabilization: 'ペン入力を安定化',
     penTooltip: 'ペンでゲームを操作している間、ゲーム内ボタン上のスクロールを抑止します',
     pointerMarker: 'マウス位置の丸いマーカー',
@@ -164,9 +174,12 @@ const EXPERIENCE_COPY = {
     displayEffects: 'Visual effects',
     english: 'English',
     grade: 'Grade',
+    gameSettings: 'Game settings',
     japanese: '日本語',
     language: 'Language',
     light: 'Light',
+    mineGuessFree: 'Guess-free Minesweeper',
+    mineGuessFreeDescription: 'On generates boards solvable by logic alone. Off uses classic boards that may require guessing. Applies to the next board.',
     penStabilization: 'Stabilize pen input',
     penTooltip: 'Prevents browser scrolling over game controls while you are using a pen',
     pointerMarker: 'Pointer position marker',
@@ -297,6 +310,11 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
     readInitialPreferences,
   )
   const [audioRevision, setAudioRevision] = useState(0)
+  const [mineGuessFreeEnabled, setMineGuessFreeEnabled] =
+    useStoredState<boolean>(
+      MINE_GUESS_FREE_PREFERENCE_KEY,
+      readMineGuessFreePreference,
+    )
   const audioContext = useRef<AudioContext | null>(null)
   const bgmMasterGain = useRef<GainNode | null>(null)
   const bgmStep = useRef(0)
@@ -481,6 +499,7 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
   return (
     <ExperienceContext.Provider
       value={{
+        mineGuessFreeEnabled,
         playEffect,
         preferences,
         setAppearance: (appearance) => updatePreferences({ appearance }),
@@ -489,6 +508,7 @@ export function AppExperienceProvider({ children }: { children: ReactNode }) {
         setColorTheme: (colorTheme) => updatePreferences({ colorTheme }),
         setEffectsEnabled: (effectsEnabled) => updatePreferences({ effectsEnabled }),
         setLanguage: (language) => updatePreferences({ language }),
+        setMineGuessFreeEnabled,
         setPenStabilizationEnabled: (penStabilizationEnabled) =>
           updatePreferences({ penStabilizationEnabled }),
         setPointerMarkerEnabled: (pointerMarkerEnabled) =>
@@ -668,8 +688,26 @@ export function SettingsPanel({
           </label>
         </fieldset>
         <fieldset>
+          <legend><Gamepad2 aria-hidden="true" /> {copy.gameSettings}</legend>
+          <label className="sound-toggle settings-description-toggle">
+            <span>
+              {copy.mineGuessFree}
+              <small>{copy.mineGuessFreeDescription}</small>
+            </span>
+            <input
+              aria-label={copy.mineGuessFree}
+              checked={experience.mineGuessFreeEnabled}
+              onChange={(event) =>
+                experience.setMineGuessFreeEnabled(event.target.checked)
+              }
+              type="checkbox"
+            />
+            <i aria-hidden="true" />
+          </label>
+        </fieldset>
+        <fieldset>
           <legend><FlaskConical aria-hidden="true" /> {copy.previewFeatures}</legend>
-          <label className="sound-toggle preview-feature-toggle">
+          <label className="sound-toggle settings-description-toggle">
             <span>
               {copy.sudokuPreviewVariants}
               <small>{copy.sudokuPreviewDescription}</small>
