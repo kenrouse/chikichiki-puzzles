@@ -61,6 +61,7 @@ const APP_COPY = {
     openFullscreen: 'ブラウザー全画面で表示',
     startFocusTooltip: '周辺UIを隠して盤面を広く表示',
     switchLanguage: 'Switch to English',
+    switchLanguageTooltip: 'メニューと遊び方を英語表示へ切り替えます。',
     update: 'アプリを更新',
     updateAvailable: '更新があります',
     updateMessage: '新しい版へ切り替えられます。',
@@ -83,6 +84,7 @@ const APP_COPY = {
     openFullscreen: 'Open browser fullscreen',
     startFocusTooltip: 'Hide surrounding UI and enlarge the board',
     switchLanguage: '日本語に切り替え',
+    switchLanguageTooltip: 'Switch menus and instructions to Japanese.',
     update: 'Update app',
     updateAvailable: 'Update available',
     updateMessage: 'A new version is ready.',
@@ -336,7 +338,7 @@ function App() {
           <button
             aria-label={copy.switchLanguage}
             className="language-switch-button"
-            data-tooltip={copy.switchLanguage}
+            data-tooltip={copy.switchLanguageTooltip}
             onClick={() => setLanguage(preferences.language === 'ja' ? 'en' : 'ja')}
             type="button"
           >

@@ -132,7 +132,7 @@ const MINE_COPY = {
     shareBoard: '同じ盤面を共有',
     shareDisabled: '最初のマスを開くと、同じ地雷配置を共有できます',
     shrink: '縮小',
-    shrinkTooltip: '盤面を縮小',
+    shrinkTooltip: 'セルを小さくして、画面内に見える範囲を広げます',
     tapAction: 'タッチ／ペンのタップ操作',
     openMode: '開く',
     openModeDescription: 'タップでマスを開く',
@@ -140,7 +140,7 @@ const MINE_COPY = {
     victorySubtitle: 'すべての安全なマスを開きました。',
     victoryTitle: '地雷原を制覇',
     zoom: '拡大',
-    zoomTooltip: '盤面を拡大',
+    zoomTooltip: 'セルを大きくして、数字とマークを見やすくします',
   },
   en: {
     actualMine: 'Red bomb',
@@ -185,7 +185,7 @@ const MINE_COPY = {
     shareBoard: 'Share this board',
     shareDisabled: 'Open the first cell before sharing this exact mine layout',
     shrink: 'Zoom out',
-    shrinkTooltip: 'Make the board smaller',
+    shrinkTooltip: 'Make cells smaller to show more of the board at once',
     tapAction: 'Touch and pen tap action',
     openMode: 'Open',
     openModeDescription: 'Tap to open a cell',
@@ -193,7 +193,7 @@ const MINE_COPY = {
     victorySubtitle: 'You opened every safe cell.',
     victoryTitle: 'Minefield cleared',
     zoom: 'Zoom in',
-    zoomTooltip: 'Make the board larger',
+    zoomTooltip: 'Make cells larger so numbers and marks are easier to read',
   },
 } as const
 
@@ -747,7 +747,7 @@ export function MinesweeperGame() {
           <strong>{copy.actualMine}</strong> {copy.actualMineDescription}
         </span>
         <span className="detonated-legend" data-tooltip={copy.detonatedTooltip}>
-          <Bomb aria-hidden="true" />
+          <span aria-hidden="true" className="detonated-legend-icon" />
           <strong>{copy.detonated}</strong> {copy.detonatedDescription}
         </span>
       </div>

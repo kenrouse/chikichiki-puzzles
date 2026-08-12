@@ -29,6 +29,7 @@ import {
   MINE_GUESS_FREE_PREFERENCE_KEY,
   readMineGuessFreePreference,
 } from './20260812_gamePreferences'
+import { resolveTooltipText } from './20260812_tooltipPolicy'
 
 export type Appearance = 'light' | 'dark'
 export type ColorTheme = 'archive' | 'ocean' | 'sakura' | 'arcade'
@@ -127,8 +128,10 @@ const BGM_NOTES = [261.63, 329.63, 392, 493.88, 440, 392, 329.63, 293.66]
 const EXPERIENCE_COPY = {
   ja: {
     animations: 'アニメーションと追加リアクション',
+    animationsTooltip: 'カウントダウン、結果演出、操作時の動きをまとめて切り替えます。',
     appearance: '明るさ',
     bgmPlaying: 'プレイ中のBGM',
+    bgmTooltip: 'ゲーム中のBGMを切り替えます。音量は下のスライダーで調整できます。',
     bgmVolume: 'BGM音量',
     cancel: 'キャンセル',
     closeResults: '成績画面を閉じる',
@@ -144,27 +147,34 @@ const EXPERIENCE_COPY = {
     light: 'ライト',
     mineGuessFree: 'マインスイーパの推測不要',
     mineGuessFreeDescription: 'ONでは論理だけで解ける盤面、OFFでは推測が必要な場合があるクラシック盤面を生成します。次の盤面から適用されます。',
+    mineGuessFreeTooltip: '切り替えても現在の盤面は変わりません。[新しい盤面]または難易度変更後に適用します。',
     penStabilization: 'ペン入力を安定化',
     penTooltip: 'ペンでゲームを操作している間、ゲーム内ボタン上のスクロールを抑止します',
     pointerMarker: 'マウス位置の丸いマーカー',
+    pointerMarkerTooltip: 'マウスやペンの操作位置を一時的な丸いマーカーで示します。',
     previewFeatures: 'プレビュー機能',
     resultReopen: '成績を見る',
     settings: '設定',
     settingsLabel: 'アプリ設定',
-    settingsTooltip: '言語・テーマ・サウンド・プレビュー機能を設定',
+    settingsTooltip: '言語、テーマ、サウンド、ゲーム設定、プレビュー機能を開きます。',
     sfx: '効果音',
     sfxPlaying: '操作と結果の効果音',
+    sfxTooltip: '数字入力、牌の選択、クリアなどの操作音を切り替えます。',
     sfxVolume: '効果音量',
     tooltips: '操作要素のツールチップ',
+    tooltipsTooltip: 'マウスを重ねた時とキーボードでフォーカスした時の補足説明を切り替えます。',
     sudokuPreviewDescription: '評価中のキラーと対称を問題タイプに表示します。',
+    sudokuPreviewTooltip: '有効にすると数独画面へ問題タイプの選択肢を追加します。現在の盤面は変わりません。',
     sudokuPreviewVariants: '数独のプレビュー問題',
     viewBoard: '盤面を見る',
     volume: '音量',
   },
   en: {
     animations: 'Animations and extra reactions',
+    animationsTooltip: 'Toggle countdown, result, and interaction motion together.',
     appearance: 'Brightness',
     bgmPlaying: 'Background music while playing',
+    bgmTooltip: 'Toggle music during play. Use the slider below to adjust its volume.',
     bgmVolume: 'BGM volume',
     cancel: 'Cancel',
     closeResults: 'Close results',
@@ -180,19 +190,24 @@ const EXPERIENCE_COPY = {
     light: 'Light',
     mineGuessFree: 'Guess-free Minesweeper',
     mineGuessFreeDescription: 'On generates boards solvable by logic alone. Off uses classic boards that may require guessing. Applies to the next board.',
+    mineGuessFreeTooltip: 'Changing this does not replace the current board. It applies after New board or a difficulty change.',
     penStabilization: 'Stabilize pen input',
     penTooltip: 'Prevents browser scrolling over game controls while you are using a pen',
     pointerMarker: 'Pointer position marker',
+    pointerMarkerTooltip: 'Show a temporary circular marker at mouse and pen interaction points.',
     previewFeatures: 'Preview features',
     resultReopen: 'View results',
     settings: 'Settings',
     settingsLabel: 'App settings',
-    settingsTooltip: 'Configure language, theme, sound, and preview features',
+    settingsTooltip: 'Open language, theme, sound, game, and preview settings.',
     sfx: 'Sound effects',
     sfxPlaying: 'Sounds for actions and results',
+    sfxTooltip: 'Toggle sounds for number entry, tile selection, clearing a game, and other actions.',
     sfxVolume: 'Sound effect volume',
     tooltips: 'Tooltips for controls',
+    tooltipsTooltip: 'Toggle extra explanations shown on pointer hover and keyboard focus.',
     sudokuPreviewDescription: 'Shows the Killer and Symmetric puzzle types currently under evaluation.',
+    sudokuPreviewTooltip: 'Adds puzzle type choices to Sudoku without replacing the current puzzle.',
     sudokuPreviewVariants: 'Sudoku preview puzzles',
     viewBoard: 'View board',
     volume: 'Volume',
@@ -636,7 +651,7 @@ export function SettingsPanel({
 
         <fieldset>
           <legend><Music2 aria-hidden="true" /> BGM</legend>
-          <label className="sound-toggle">
+          <label className="sound-toggle" data-tooltip={copy.bgmTooltip}>
             <span>{copy.bgmPlaying}</span>
             <input
               checked={experience.preferences.bgmEnabled}
@@ -663,7 +678,7 @@ export function SettingsPanel({
 
         <fieldset>
           <legend><Sparkles aria-hidden="true" /> {copy.sfx}</legend>
-          <label className="sound-toggle">
+          <label className="sound-toggle" data-tooltip={copy.sfxTooltip}>
             <span>{copy.sfxPlaying}</span>
             <input
               checked={experience.preferences.sfxEnabled}
@@ -689,7 +704,10 @@ export function SettingsPanel({
         </fieldset>
         <fieldset>
           <legend><Gamepad2 aria-hidden="true" /> {copy.gameSettings}</legend>
-          <label className="sound-toggle settings-description-toggle">
+          <label
+            className="sound-toggle settings-description-toggle"
+            data-tooltip={copy.mineGuessFreeTooltip}
+          >
             <span>
               {copy.mineGuessFree}
               <small>{copy.mineGuessFreeDescription}</small>
@@ -707,7 +725,10 @@ export function SettingsPanel({
         </fieldset>
         <fieldset>
           <legend><FlaskConical aria-hidden="true" /> {copy.previewFeatures}</legend>
-          <label className="sound-toggle settings-description-toggle">
+          <label
+            className="sound-toggle settings-description-toggle"
+            data-tooltip={copy.sudokuPreviewTooltip}
+          >
             <span>
               {copy.sudokuPreviewVariants}
               <small>{copy.sudokuPreviewDescription}</small>
@@ -724,7 +745,10 @@ export function SettingsPanel({
         </fieldset>
         <fieldset>
           <legend><SlidersHorizontal aria-hidden="true" /> {copy.displayEffects}</legend>
-          <label className="sound-toggle">
+          <label
+            className="sound-toggle"
+            data-tooltip={copy.pointerMarkerTooltip}
+          >
             <span>{copy.pointerMarker}</span>
             <input
               checked={experience.preferences.pointerMarkerEnabled}
@@ -735,7 +759,10 @@ export function SettingsPanel({
             />
             <i aria-hidden="true" />
           </label>
-          <label className="sound-toggle">
+          <label
+            className="sound-toggle"
+            data-tooltip={copy.animationsTooltip}
+          >
             <span>{copy.animations}</span>
             <input
               checked={experience.preferences.effectsEnabled}
@@ -746,7 +773,10 @@ export function SettingsPanel({
             />
             <i aria-hidden="true" />
           </label>
-          <label className="sound-toggle">
+          <label
+            className="sound-toggle"
+            data-tooltip={copy.tooltipsTooltip}
+          >
             <span>{copy.tooltips}</span>
             <input
               checked={experience.preferences.tooltipsEnabled}
@@ -864,23 +894,16 @@ const CLICKABLE_SELECTOR = [
 ].join(',')
 
 function getTooltipText(element: HTMLElement): string {
-  const explicit = element.dataset.tooltip
-  if (explicit) {
-    return explicit
-  }
-  const accessibleName = element.getAttribute('aria-label')
-  if (accessibleName) {
-    return accessibleName
-  }
-  const title = element.getAttribute('title')
-  if (title) {
-    return title
-  }
-  const label = element.closest('label')?.innerText
-  if (label) {
-    return label.replace(/\s+/g, ' ').trim()
-  }
-  return element.innerText.replace(/\s+/g, ' ').trim()
+  const visibleText = element.innerText.replace(/\s+/g, ' ').trim()
+  const iconOnly = element.matches(
+    'button, a[href], [role="button"], [role="tab"]',
+  ) && visibleText.length === 0
+  return resolveTooltipText({
+    accessibleName: element.getAttribute('aria-label') ?? '',
+    explicitText: element.dataset.tooltip ?? '',
+    iconOnly,
+    title: element.getAttribute('title') ?? '',
+  })
 }
 
 function GlobalTooltip() {
@@ -891,10 +914,12 @@ function GlobalTooltip() {
       if (pointerType === 'touch' || !(target instanceof Element)) {
         return
       }
-      const clickable = target.closest<HTMLElement>(CLICKABLE_SELECTOR)
-      if (!clickable || clickable.dataset.tooltipDisabled === 'true') {
+      const directTarget = target.closest<HTMLElement>(CLICKABLE_SELECTOR)
+      if (!directTarget || directTarget.dataset.tooltipDisabled === 'true') {
         return
       }
+      const explicitTarget = target.closest<HTMLElement>('[data-tooltip]')
+      const clickable = explicitTarget ?? directTarget
       const text = getTooltipText(clickable)
       if (!text) {
         return

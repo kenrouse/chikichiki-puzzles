@@ -16,8 +16,11 @@ const HOW_TO_COPY = {
   ja: {
     details: '詳しく見る',
     detailsClose: '詳細を閉じる',
+    detailsCloseTooltip: '展開中の操作方法、ランク条件、攻略情報を閉じて要点だけ表示します。',
     detailsHeading: '操作とクリア条件',
+    detailsTooltip: '操作方法、クリア条件、ランクの決まり方、攻略情報を展開します。',
     hide: '遊び方を隠す',
+    hideTooltip: 'このゲームの遊び方を非表示にします。右端の[遊び方]から再表示できます。',
     minesweeper: {
       rank: {
         intro: 'クリア時のランクは、スコア ÷（安全マス数 × 10）の効率で決まります。時間はランクに影響せず、ベストタイムとして別に記録されます。連鎖で多くのマスを一度に開くほど上位を狙えます。',
@@ -39,6 +42,7 @@ const HOW_TO_COPY = {
       title: 'マインスイーパの遊び方',
     },
     restore: '遊び方',
+    restoreTooltip: '非表示にした遊び方の要点と詳しい説明を再表示します。',
     shisen: {
       rank: {
         intro: 'ランク用ペナルティは「クリア秒数＋シャッフル回数 × 120秒」です。ヒントはランクに影響しません。シャッフル1回を減らすことは、2分短縮するのと同じ効果です。',
@@ -94,8 +98,11 @@ const HOW_TO_COPY = {
   en: {
     details: 'Full instructions',
     detailsClose: 'Close details',
+    detailsCloseTooltip: 'Collapse the expanded controls, grade rules, and strategy details.',
     detailsHeading: 'Controls and win condition',
+    detailsTooltip: 'Expand controls, win conditions, grade rules, and strategy details.',
     hide: 'Hide how to play',
+    hideTooltip: 'Hide these instructions. Use How to play on the right to restore them.',
     minesweeper: {
       rank: {
         intro: 'Your clear grade uses score ÷ (safe cells × 10). Time does not affect grade and is tracked separately as best time. Larger cascades are the main route to a higher grade.',
@@ -117,6 +124,7 @@ const HOW_TO_COPY = {
       title: 'How to play Minesweeper',
     },
     restore: 'How to play',
+    restoreTooltip: 'Restore the hidden overview and full instructions.',
     shisen: {
       rank: {
         intro: 'Grade penalty is clear time in seconds + 120 seconds per reshuffle. Hints do not affect grade. Avoiding one reshuffle is equivalent to finishing two minutes faster.',
@@ -194,6 +202,7 @@ export function GameHowTo({
     return (
       <div className="game-how-to-restore">
         <button
+          data-tooltip={copy.restoreTooltip}
           onClick={() => setVisibility((current) => ({ ...current, [game]: true }))}
           type="button"
         >
@@ -214,6 +223,7 @@ export function GameHowTo({
           <button
             aria-controls={detailsId}
             aria-expanded={detailsOpen}
+            data-tooltip={detailsOpen ? copy.detailsCloseTooltip : copy.detailsTooltip}
             onClick={() => setDetailsOpen((current) => !current)}
             type="button"
           >
@@ -222,7 +232,7 @@ export function GameHowTo({
           </button>
           <button
             aria-label={copy.hide}
-            data-tooltip={copy.hide}
+            data-tooltip={copy.hideTooltip}
             onClick={() => {
               setDetailsOpen(false)
               setVisibility((current) => ({ ...current, [game]: false }))

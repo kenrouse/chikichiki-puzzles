@@ -601,6 +601,36 @@ main {
   cursor: pointer;
   font-size: 11px;
   font-weight: 700;
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.game-how-to-actions button[aria-expanded='true'] {
+  border-color: var(--forest);
+  color: var(--forest);
+  background: color-mix(in srgb, var(--mint) 34%, var(--paper-strong));
+}
+
+.game-how-to-actions button:hover,
+.game-how-to-restore button:hover {
+  border-color: var(--forest);
+  color: var(--paper-strong);
+  background: var(--forest);
+  box-shadow: 0 5px 12px color-mix(in srgb, var(--forest) 22%, transparent);
+  transform: translateY(-2px);
+}
+
+.game-how-to-actions button:focus-visible,
+.game-how-to-restore button:focus-visible {
+  border-color: var(--forest);
+  color: var(--paper-strong);
+  background: var(--forest);
+  outline: 3px solid var(--sun);
+  outline-offset: 2px;
 }
 
 .game-how-to-actions button:last-child {
@@ -613,6 +643,14 @@ main {
 .game-how-to-restore svg {
   width: 15px;
   height: 15px;
+  transition: transform 140ms ease;
+}
+
+.game-how-to-actions button:hover svg,
+.game-how-to-actions button:focus-visible svg,
+.game-how-to-restore button:hover svg,
+.game-how-to-restore button:focus-visible svg {
+  transform: scale(1.16);
 }
 
 .game-how-to-tips {
@@ -852,6 +890,26 @@ main {
 .mine-touch-mode button:first-child { border-radius: 5px 0 0 5px; }
 .mine-touch-mode button:last-child { border-left: 0; border-radius: 0 5px 5px 0; }
 .mine-touch-mode button.active { color: var(--paper-strong); background: var(--forest); }
+.mine-touch-mode button:hover {
+  color: var(--forest);
+  background: color-mix(in srgb, var(--mint) 32%, var(--paper-strong));
+}
+
+.mine-touch-mode button.active:hover {
+  color: var(--paper-strong);
+  background: var(--forest-2);
+}
+
+.mine-touch-mode button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--sun);
+  outline-offset: 2px;
+}
+
+.mine-touch-mode button:active {
+  transform: scale(0.98);
+}
 .mine-touch-mode button > span { display: grid; gap: 3px; text-align: left; }
 .mine-touch-mode button strong { font-size: 11px; }
 .mine-touch-mode button small { font-size: 9px; opacity: 0.75; }
@@ -1288,7 +1346,24 @@ main {
 .mine-legend .flag-legend svg { color: var(--coral); }
 .mine-legend .question-legend svg { color: var(--forest); }
 .mine-legend .mine-legend-item svg { color: var(--danger); }
-.mine-legend .detonated-legend svg { color: var(--danger); }
+.mine-legend .detonated-legend-icon {
+  position: relative;
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  border: 2px solid var(--sun);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sun) 28%, transparent);
+}
+
+.mine-legend .detonated-legend-icon::after {
+  position: absolute;
+  inset: 3px;
+  border: 1px solid var(--sun);
+  border-radius: 50%;
+  content: '';
+}
 .mine-legend strong { color: var(--ink); }
 
 .minefield-scroll {
@@ -2361,6 +2436,33 @@ button:active,
   font-size: 11px;
 }
 
+.settings-panel .sound-toggle {
+  margin-inline: -8px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
+}
+
+.settings-panel .sound-toggle:hover {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--mint) 28%, var(--paper-strong));
+  transform: translateX(2px);
+}
+
+.settings-panel .sound-toggle:focus-within {
+  border-color: var(--forest);
+  background: color-mix(in srgb, var(--mint) 34%, var(--paper-strong));
+}
+
+.settings-panel .sound-toggle:active {
+  transform: scale(0.99);
+}
+
 .sound-toggle > span {
   flex: 1;
 }
@@ -2390,6 +2492,16 @@ button:active,
   border-radius: 20px;
   background: var(--line);
   cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.settings-panel .sound-toggle:hover i,
+.settings-panel .sound-toggle:focus-within i {
+  border-color: var(--forest);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sun) 24%, transparent);
 }
 
 .sound-toggle i::after {
