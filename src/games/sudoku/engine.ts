@@ -44,13 +44,37 @@ const CLUE_TARGETS: Record<SudokuDifficulty, number> = {
   expert: 24,
 }
 
-const GENERATION_ATTEMPTS: Record<SudokuDifficulty, number> = {
+const STANDARD_GENERATION_ATTEMPTS: Record<SudokuDifficulty, number> = {
+  beginner: 1,
+  easy: 1,
+  normal: 10,
+  hard: 10,
+  expert: 10,
+}
+
+const KILLER_GENERATION_ATTEMPTS: Record<SudokuDifficulty, number> = {
   beginner: 1,
   easy: 1,
   normal: 2,
   hard: 3,
   expert: 6,
 }
+
+const STANDARD_RATING_TARGETS: Partial<
+  Record<SudokuDifficulty, { maximum: number; minimum: number }>
+> = {
+  normal: { maximum: 200, minimum: 100 },
+  hard: { maximum: 300, minimum: 150 },
+}
+
+const ADVANCED_TECHNIQUES: HumanTechnique[] = [
+  'locked-candidate',
+  'naked-pair',
+  'hidden-pair',
+  'x-wing',
+  'xy-wing',
+  'simple-chain',
+]
 
 const KILLER_CAGE_SIZES: Record<SudokuDifficulty, number> = {
   beginner: 1,
@@ -165,6 +189,13 @@ export function isSolvableWithNakedSingles(board: readonly number[]): boolean {
     working[placement.index] = placement.value
   }
   return working.every((value) => value !== 0)
+}
+
+export function isSolvableWithSingles(board: readonly number[]): boolean {
+  const result = analyzeHumanSolving(board)
+  return result.unresolved === 0 && ADVANCED_TECHNIQUES.every(
+    (technique) => result.techniques[technique] === 0,
+  )
 }
 
 function measureSearch(board: readonly number[]): { guessBranches: number; searchNodes: number } {
@@ -357,9 +388,7 @@ function generateSudokuCandidate(
     const remainsBeginnerFriendly =
       difficulty !== 'beginner' || isSolvableWithNakedSingles(puzzle)
     const remainsEasyFriendly =
-      difficulty !== 'easy' ||
-      variant !== 'symmetric' ||
-      analyzeHumanSolving(puzzle).unresolved === 0
+      difficulty !== 'easy' || isSolvableWithSingles(puzzle)
     if (solutionCount !== 1 || !remainsBeginnerFriendly || !remainsEasyFriendly) {
       group.forEach((index, groupIndex) => {
         puzzle[index] = previousValues[groupIndex]
@@ -379,27 +408,115 @@ function generateSudokuCandidate(
   }
 }
 
+function hasAdvancedTechnique(analysis: SudokuAnalysis): boolean {
+  return ADVANCED_TECHNIQUES.some(
+    (technique) => analysis.techniques[technique] > 0,
+  )
+}
+
+function wasSolvedWithoutSearch(analysis: SudokuAnalysis): boolean {
+  return analysis.unresolvedAfterLogic === 0 && analysis.guessBranches === 0
+}
+
+function distanceFromRatingTarget(
+  rating: number,
+  target: { maximum: number; minimum: number },
+): number {
+  if (rating < target.minimum) return target.minimum - rating
+  if (rating > target.maximum) return rating - target.maximum
+  return 0
+}
+
+function matchesStandardTarget(
+  candidate: SudokuPuzzle,
+  difficulty: SudokuDifficulty,
+): boolean {
+  const target = STANDARD_RATING_TARGETS[difficulty]
+  if (!target || distanceFromRatingTarget(candidate.analysis.rating, target) !== 0) {
+    return false
+  }
+  if (!wasSolvedWithoutSearch(candidate.analysis)) return false
+  return difficulty !== 'hard' || hasAdvancedTechnique(candidate.analysis)
+}
+
+function selectClosestToTarget(
+  candidates: readonly SudokuPuzzle[],
+  target: { maximum: number; minimum: number },
+): SudokuPuzzle {
+  const center = (target.minimum + target.maximum) / 2
+  return candidates.reduce((best, candidate) => {
+    const candidateDistance = distanceFromRatingTarget(
+      candidate.analysis.rating,
+      target,
+    )
+    const bestDistance = distanceFromRatingTarget(best.analysis.rating, target)
+    if (candidateDistance !== bestDistance) {
+      return candidateDistance < bestDistance ? candidate : best
+    }
+    return Math.abs(candidate.analysis.rating - center) <
+      Math.abs(best.analysis.rating - center)
+      ? candidate
+      : best
+  })
+}
+
+function selectStandardFallback(
+  candidates: readonly SudokuPuzzle[],
+  difficulty: SudokuDifficulty,
+): SudokuPuzzle {
+  if (difficulty === 'expert') {
+    return candidates.reduce((best, candidate) =>
+      candidate.analysis.rating > best.analysis.rating ? candidate : best,
+    )
+  }
+
+  const target = STANDARD_RATING_TARGETS[difficulty]
+  if (!target) return candidates[0]
+
+  const withoutSearch = candidates.filter((candidate) =>
+    wasSolvedWithoutSearch(candidate.analysis),
+  )
+  const preferred = difficulty === 'hard'
+    ? withoutSearch.filter((candidate) => hasAdvancedTechnique(candidate.analysis))
+    : withoutSearch
+  const pool = preferred.length > 0
+    ? preferred
+    : withoutSearch.length > 0
+      ? withoutSearch
+      : candidates
+  return selectClosestToTarget(pool, target)
+}
+
 export function generateSudoku(
   difficulty: SudokuDifficulty,
   seed: number,
   variant: SudokuVariant = 'classic',
 ): SudokuPuzzle {
-  const candidates = Array.from(
-    { length: GENERATION_ATTEMPTS[difficulty] },
-    (_, attempt) =>
-      generateSudokuCandidate(
-        difficulty,
-        (seed + Math.imul(attempt, 0x9e3779b1)) >>> 0,
-        variant,
-      ),
-  )
-  const selected = difficulty === 'beginner' || difficulty === 'easy'
-    ? candidates.reduce((best, candidate) =>
-      candidate.analysis.rating < best.analysis.rating ? candidate : best,
+  const attempts = variant === 'killer'
+    ? KILLER_GENERATION_ATTEMPTS[difficulty]
+    : STANDARD_GENERATION_ATTEMPTS[difficulty]
+  const candidates: SudokuPuzzle[] = []
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const candidate = generateSudokuCandidate(
+      difficulty,
+      (seed + Math.imul(attempt, 0x9e3779b1)) >>> 0,
+      variant,
     )
-    : candidates.reduce((best, candidate) =>
-      candidate.analysis.rating > best.analysis.rating ? candidate : best,
-    )
+    candidates.push(candidate)
+    if (variant !== 'killer' && matchesStandardTarget(candidate, difficulty)) {
+      return { ...candidate, seed: seed >>> 0 }
+    }
+  }
+
+  const selected = variant === 'killer'
+    ? difficulty === 'beginner' || difficulty === 'easy'
+      ? candidates.reduce((best, candidate) =>
+        candidate.analysis.rating < best.analysis.rating ? candidate : best,
+      )
+      : candidates.reduce((best, candidate) =>
+        candidate.analysis.rating > best.analysis.rating ? candidate : best,
+      )
+    : selectStandardFallback(candidates, difficulty)
   return { ...selected, seed: seed >>> 0 }
 }
 

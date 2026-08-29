@@ -25,11 +25,13 @@ import { ShisenGame } from './games/shisen/ShisenGame'
 import { SudokuGame } from './games/sudoku/SudokuGame'
 import { GuidePage } from './pages/20260811_GuidePage'
 import { TitlePage, type TitleGameId } from './pages/20260811_TitlePage'
+import { SudokuChallengePage } from './pages/20260829_SudokuChallengePage'
 import { getLocalizedCopy } from './i18n/20260812_i18n'
+import { buildSeededGameUrl } from './share/20260811_seededGameUrl'
 import './App.css'
 
 type GameId = 'sudoku' | 'minesweeper' | 'shisen'
-type ViewId = GameId | 'guide' | 'home'
+type ViewId = GameId | 'challenges' | 'guide' | 'home'
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -49,6 +51,7 @@ const APP_COPY = {
     exitFocus: '集中モードを終了',
     exitFocusTooltip: '通常の画面表示へ戻る',
     exitFullscreen: '全画面表示を終了',
+    footerChallenge: '数独からの挑戦状',
     footerGuide: 'ゲーム制作ノート',
     gameLabels: { minesweeper: 'マインスイーパ', shisen: '四川省', sudoku: '数独' },
     gameNavigation: 'ゲーム選択',
@@ -72,6 +75,7 @@ const APP_COPY = {
     exitFocus: 'Exit focus mode',
     exitFocusTooltip: 'Return to the standard layout',
     exitFullscreen: 'Exit fullscreen',
+    footerChallenge: 'Sudoku challenges',
     footerGuide: 'Game design notes',
     gameLabels: { minesweeper: 'Minesweeper', shisen: 'Shisen-Sho', sudoku: 'Sudoku' },
     gameNavigation: 'Choose a game',
@@ -96,8 +100,8 @@ function readViewFromHash(hash: string): ViewId {
   if (!candidate) {
     return 'home'
   }
-  if (candidate === 'guide') {
-    return 'guide'
+  if (candidate === 'guide' || candidate === 'challenges') {
+    return candidate
   }
   return GAMES.some((game) => game.id === candidate)
     ? (candidate as GameId)
@@ -223,6 +227,18 @@ function App() {
     setFocusMode(true)
     playEffect('select')
     window.requestAnimationFrame(() => window.scrollTo({ top: 0 }))
+  }
+
+  function startSudokuChallenge(seed: number): void {
+    const challengeUrl = buildSeededGameUrl(
+      window.location.href,
+      'sudoku',
+      seed,
+      'expert',
+      { variant: 'classic' },
+    )
+    window.location.hash = new URL(challengeUrl).hash
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function leaveFocusMode(): Promise<void> {
@@ -368,17 +384,29 @@ function App() {
 
       <main>
         {activeView === 'home' ? (
-          <TitlePage onSelect={(game: TitleGameId) => selectView(game)} />
+          <TitlePage
+            onChallenge={() => selectView('challenges')}
+            onSelect={(game: TitleGameId) => selectView(game)}
+          />
         ) : null}
         {activeView === 'sudoku' ? <SudokuGame key={locationHash} /> : null}
         {activeView === 'minesweeper' ? <MinesweeperGame key={locationHash} /> : null}
         {activeView === 'shisen' ? <ShisenGame key={locationHash} /> : null}
         {activeView === 'guide' ? <GuidePage onBack={() => selectView('home')} /> : null}
+        {activeView === 'challenges' ? (
+          <SudokuChallengePage
+            onBack={() => selectView('home')}
+            onPlay={startSudokuChallenge}
+          />
+        ) : null}
       </main>
 
       <footer className="app-footer">
         <span>ORIGINAL i-APPLI: 2006–2009</span>
-        <button onClick={() => selectView('guide')} type="button">{copy.footerGuide}</button>
+        <div className="app-footer-links">
+          <button onClick={() => selectView('challenges')} type="button">{copy.footerChallenge}</button>
+          <button onClick={() => selectView('guide')} type="button">{copy.footerGuide}</button>
+        </div>
         <span>OFFLINE READY / NO TRACKING / LOCAL SAVE</span>
       </footer>
       <SettingsPanel onClose={() => setSettingsOpen(false)} open={settingsOpen} />

@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "generate:sudoku-challenges": "node scripts/generate-sudoku-challenges.mjs",
     "lint": "eslint .",
     "test": "vitest run",
     "preview": "vite preview"

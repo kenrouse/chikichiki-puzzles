@@ -70,7 +70,7 @@ const HOW_TO_COPY = {
         '候補を残したいときは「メモ」へ切り替えます。ガイド、同じ数字の強調、ヒント、元に戻す操作も利用できます。すべて正しく埋めればクリアです。',
       ],
       strategy: {
-        generator: '一意解判定はAlgorithm X / Dancing Linksで行います。「入門」は候補が1つのマスを埋め続けるだけで完走できることも検査します。難易度分析は裸／隠れシングル、ロック候補、裸／隠れペア、X-Wing、XY-Wing、単純連鎖を順に適用し、最難手筋、使用回数、候補削除数、残った探索量をratingへ反映します。ふつう・むずかしい・エキスパートは、それぞれ2・3・6個の候補からratingが高い問題を選びます。',
+        generator: '一意解判定はAlgorithm X / Dancing Linksで行います。「入門」は裸のシングルだけ、「やさしい」は裸／隠れシングルだけで完走できることも検査します。ふつうは探索なしでrating 100〜200、むずかしいは高度手筋を使い探索なしで150〜300を目標に最大10候補を調べ、未達なら条件に最も近い候補を選びます。エキスパートは10候補からrating最大を採用します。',
         generatorTitle: '問題生成との関係',
         intro: '当てずっぽうで数字を置く前に、次の順序で候補を狭めます。数字を1つ置くたびに盤面の条件が変わるので、最初から同じ順序を繰り返すのが基本です。',
         steps: [
@@ -84,7 +84,7 @@ const HOW_TO_COPY = {
         title: '論理的な攻略手順',
         variants: [
           'クラシック: 完成盤から手掛かりを1つずつ抜き、一意解を保つ従来型です。行、列、3 × 3 ブロックの標準ルールだけで解きます。難易度が上がると、目標の手掛かり数が50、42、34、28、24と減ります。',
-          '対称: 180 度回転で対応する2マスを組として抜き、どの残存ペアもさらに抜けないペア最小問題です。解くルールはクラシックと同じです。入門とやさしいでは論理手筋で解けることを確認し、上位難易度では生成候補を増やして rating の高い盤面を選びます。',
+          '対称: 180 度回転で対応する2マスを組として抜き、どの残存ペアもさらに抜けないペア最小問題です。解くルールと手筋／ratingによる難易度目標はクラシックと同じです。',
           'キラー: 標準ルールに加え、破線で囲まれた空欄ケージ内で数字を重複させず、左上の合計値へ合わせます。難易度が上がると与え数字が減り、最大ケージサイズが1マスから5マスまで増えるため、合計から候補を絞る場面が増えます。',
           '難易度表示は各タイプ内の相対的な目安です。クラシック／対称とキラーでは rating の計算方法が異なるため、タイプをまたいだ数値の大小は難しさの直接比較には使えません。',
         ],
@@ -152,7 +152,7 @@ const HOW_TO_COPY = {
         'Switch to Notes to record candidates. You can also use the placement guide, matching-number highlight, hint, and undo controls. Fill every cell correctly to win.',
       ],
       strategy: {
-        generator: 'Uniqueness is checked with Algorithm X / Dancing Links. Beginner also verifies that repeatedly filling cells with one candidate completes the puzzle. Difficulty analysis applies naked and hidden singles, locked candidates, naked and hidden pairs, X-Wing, XY-Wing, and simple coloring in order. The rating records the hardest technique, its uses, candidate eliminations, and remaining search effort. Normal, Hard, and Expert choose the highest-rated puzzle from 2, 3, and 6 candidates.',
+        generator: 'Uniqueness is checked with Algorithm X / Dancing Links. Beginner must finish with naked singles, while Easy allows naked and hidden singles only. Normal checks up to 10 candidates for a search-free rating of 100–200; Hard targets 150–300 with an advanced technique and no search. If no exact target is found, the closest eligible candidate is used. Expert takes the highest rating from 10 candidates.',
         generatorTitle: 'How generation affects solving',
         intro: 'Before guessing a number, narrow the candidates in this order. Every confirmed number changes the board, so the key habit is to repeat the same sequence after each placement.',
         steps: [
@@ -166,7 +166,7 @@ const HOW_TO_COPY = {
         title: 'A logical solving sequence',
         variants: [
           'Classic: removes individual clues from a solved board while preserving one solution. You solve it with only the standard row, column, and 3 × 3 box rules. Higher difficulties reduce the target clue counts through 50, 42, 34, 28, and 24.',
-          'Symmetric: removes 180° rotational pairs until no remaining pair can be removed without losing uniqueness. Its solving rules are the same as Classic. Beginner and Easy verify logical solvability, while higher difficulties consider more generated candidates and select a higher-rated board.',
+          'Symmetric: removes 180° rotational pairs until no remaining pair can be removed without losing uniqueness. Its solving rules and technique/rating difficulty targets are the same as Classic.',
           'Killer: adds connected dashed cages to the standard rules. Digits cannot repeat within a cage and must reach its upper-left sum. Higher difficulties supply fewer digits and increase the maximum cage size from one to five cells, requiring more deductions from sums.',
           'Difficulty is relative within each puzzle type. Classic/Symmetric and Killer use different rating formulas, so their rating numbers do not directly compare difficulty across types.',
         ],

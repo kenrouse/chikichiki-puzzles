@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'vitest'
 import {
+  SUDOKU_CHALLENGES,
+  SUDOKU_CHALLENGE_CATALOG_META,
+} from './20260829_challenges'
+import {
   analyzeSudoku,
   countPuzzleSolutions,
   countSolutions,
@@ -8,6 +12,7 @@ import {
   getCandidates,
   getConflicts,
   isSolvableWithNakedSingles,
+  isSolvableWithSingles,
   isSudokuSolved,
   type SudokuDifficulty,
   type SudokuVariant,
@@ -21,6 +26,14 @@ const difficulties: SudokuDifficulty[] = [
   'expert',
 ]
 const variants: SudokuVariant[] = ['classic', 'symmetric', 'killer']
+const advancedTechniques = [
+  'locked-candidate',
+  'naked-pair',
+  'hidden-pair',
+  'x-wing',
+  'xy-wing',
+  'simple-chain',
+] as const
 
 describe('Sudoku engine', () => {
   test.each(difficulties)('generates a unique %s puzzle', (difficulty) => {
@@ -145,8 +158,68 @@ describe('Sudoku engine', () => {
       expect(beginner.analysis.clueCount).toBeGreaterThanOrEqual(50)
       expect(beginner.analysis.rating).toBeLessThan(easy.analysis.rating)
       expect(isSolvableWithNakedSingles(beginner.puzzle)).toBe(true)
+      expect(isSolvableWithSingles(easy.puzzle)).toBe(true)
       expect(beginner.analysis.unresolvedAfterLogic).toBe(0)
       expect(beginner.analysis.guessBranches).toBe(0)
+    }
+  })
+
+  test('selects search-free Normal and Hard profiles across representative seeds', () => {
+    let normalTargetMatches = 0
+    let hardTargetMatches = 0
+    let hardAdvancedMatches = 0
+
+    for (let seed = 0; seed < 25; seed += 1) {
+      const normal = generateSudoku('normal', seed)
+      const hard = generateSudoku('hard', seed)
+      const hardUsesAdvancedTechnique = advancedTechniques.some(
+        (technique) => hard.analysis.techniques[technique] > 0,
+      )
+
+      expect(normal.analysis.unresolvedAfterLogic).toBe(0)
+      expect(normal.analysis.guessBranches).toBe(0)
+      expect(hard.analysis.unresolvedAfterLogic).toBe(0)
+      expect(hard.analysis.guessBranches).toBe(0)
+      if (normal.analysis.rating >= 100 && normal.analysis.rating <= 200) {
+        normalTargetMatches += 1
+      }
+      if (hardUsesAdvancedTechnique) {
+        hardAdvancedMatches += 1
+        if (hard.analysis.rating >= 150 && hard.analysis.rating <= 300) {
+          hardTargetMatches += 1
+        }
+      }
+    }
+
+    expect(normalTargetMatches).toBeGreaterThan(0)
+    expect(hardAdvancedMatches).toBeGreaterThan(0)
+    expect(hardTargetMatches).toBeGreaterThan(0)
+  })
+
+  test('keeps the generated challenge catalog reproducible and above its threshold', () => {
+    expect(SUDOKU_CHALLENGE_CATALOG_META.candidateCount).toBe(10_000)
+    expect(SUDOKU_CHALLENGES.length).toBeGreaterThan(0)
+    expect(new Set(SUDOKU_CHALLENGES.map((entry) => entry.seed)).size)
+      .toBe(SUDOKU_CHALLENGES.length)
+
+    for (let index = 0; index < SUDOKU_CHALLENGES.length; index += 1) {
+      const entry = SUDOKU_CHALLENGES[index]
+      expect(entry.rating).toBeGreaterThanOrEqual(
+        SUDOKU_CHALLENGE_CATALOG_META.threshold,
+      )
+      expect(entry.puzzle).toMatch(/^\d{81}$/)
+      if (index > 0) {
+        expect(entry.rating).toBeLessThanOrEqual(
+          SUDOKU_CHALLENGES[index - 1].rating,
+        )
+      }
+    }
+
+    for (const index of [0, Math.floor(SUDOKU_CHALLENGES.length / 2), SUDOKU_CHALLENGES.length - 1]) {
+      const entry = SUDOKU_CHALLENGES[index]
+      const regenerated = generateSudoku('expert', entry.seed, 'classic')
+      expect(regenerated.analysis.rating).toBe(entry.rating)
+      expect(regenerated.puzzle.join('')).toBe(entry.puzzle)
     }
   })
 

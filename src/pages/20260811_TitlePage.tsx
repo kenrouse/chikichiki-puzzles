@@ -1,4 +1,4 @@
-import { ArrowRight, Bomb, Grid3X3, LayoutGrid } from 'lucide-react'
+import { ArrowRight, Bomb, Grid3X3, LayoutGrid, Trophy } from 'lucide-react'
 import { useAppExperience } from '../experience/20260811_AppExperience'
 import { getLocalizedCopy } from '../i18n/20260812_i18n'
 import { TopShareButton } from '../share/20260811_GameShare'
@@ -8,6 +8,11 @@ export type TitleGameId = 'sudoku' | 'minesweeper' | 'shisen'
 const TITLE_COPY = {
   ja: {
     capabilities: 'アプリの特徴',
+    challenge: {
+      description: '10,000候補から選び抜いた、RATING 1,000以上のクラシック数独問題集。',
+      label: '数独からの挑戦状',
+      start: '高難度問題集を開く',
+    },
     games: [
       { description: '一意解と高度手筋で評価する、5段階の数字パズル。', id: 'sudoku' as const, icon: Grid3X3, label: 'おーとまちっく数独', years: '2006 / 2011' },
       { description: '推測不要とクラシックを選べる、連鎖スコア付き地雷原。', id: 'minesweeper' as const, icon: Bomb, label: 'ちきちきまいんすいーぱ。', years: '2007' },
@@ -20,6 +25,11 @@ const TITLE_COPY = {
   },
   en: {
     capabilities: 'App features',
+    challenge: {
+      description: 'A Classic Sudoku collection rated 1,000 or higher, selected from 10,000 candidates.',
+      label: 'Sudoku Challenge Vault',
+      start: 'Open the challenge collection',
+    },
     games: [
       { description: 'Five levels of uniquely solvable puzzles rated with human techniques.', id: 'sudoku' as const, icon: Grid3X3, label: 'Automatic Sudoku', years: '2006 / 2011' },
       { description: 'A cascading-score minefield with guess-free and classic modes.', id: 'minesweeper' as const, icon: Bomb, label: 'Chikichiki Minesweeper', years: '2007' },
@@ -32,7 +42,13 @@ const TITLE_COPY = {
   },
 } as const
 
-export function TitlePage({ onSelect }: { onSelect: (game: TitleGameId) => void }) {
+export function TitlePage({
+  onChallenge,
+  onSelect,
+}: {
+  onChallenge: () => void
+  onSelect: (game: TitleGameId) => void
+}) {
   const { preferences } = useAppExperience()
   const copy = getLocalizedCopy(preferences.language, TITLE_COPY)
   return (
@@ -73,6 +89,21 @@ export function TitlePage({ onSelect }: { onSelect: (game: TitleGameId) => void 
           )
         })}
       </div>
+
+      <button
+        className="title-challenge"
+        data-tooltip={copy.challenge.start}
+        onClick={onChallenge}
+        type="button"
+      >
+        <span className="title-challenge-icon"><Trophy aria-hidden="true" /></span>
+        <span>
+          <small>SPECIAL COLLECTION / RATING 1,000+</small>
+          <strong>{copy.challenge.label}</strong>
+          <em>{copy.challenge.description}</em>
+        </span>
+        <ArrowRight aria-hidden="true" />
+      </button>
 
       <footer className="title-capabilities" aria-label={copy.capabilities}>
         <span>INSTALLABLE PWA</span>

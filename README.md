@@ -14,7 +14,8 @@ After the first visit, the app can run offline. Game progress, preferences, and 
 
 ## Games
 
-- **Automatic Sudoku**: Uniquely solvable Classic puzzles verified with Algorithm X / Dancing Links, five difficulty levels including a Beginner level guaranteed to finish with naked singles, human-technique ratings, Answer and Notes input, undo, hints, candidate guidance, and matching-number highlights. Symmetric and Killer generators remain available as opt-in preview features under Settings while their gameplay is refined.
+- **Automatic Sudoku**: Uniquely solvable Classic puzzles verified with Algorithm X / Dancing Links, five difficulty levels selected by technique and rating targets, Answer and Notes input, undo, hints, candidate guidance, and matching-number highlights. Symmetric and Killer generators remain available as opt-in preview features under Settings while their gameplay is refined.
+- **Sudoku Challenge Vault**: 163 puzzles rated 1,000 or higher, preselected from 10,000 Expert candidates and browsable with board previews and rating filters.
 - **Chikichiki Minesweeper**: A safe first move, guess-free and classic generation selected under Game settings, Open and Mark touch modes, right-click and hold marking, drag protection, fit-to-screen sizing, cascade scoring, best scores and times, and distinct indicators for the actual mine and the mine that ended the game.
 - **Shisen-Sho**: Matching-tile paths with at most two turns, guaranteed-solvable layouts, path animation, manual zoom and fit-to-screen sizing, initial-board review after a clear, and three difficulty levels based on mobility.
 
@@ -67,6 +68,12 @@ Validation commands:
 npm run lint
 npm test
 npm run build
+```
+
+To regenerate the challenge catalog from the current Sudoku generator:
+
+```powershell
+npm run generate:sudoku-challenges
 ```
 
 The production build uses `/chikichiki-puzzles/` as its GitHub Pages base path.
