@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'vitest'
 import {
+  createSudokuChallengePuzzle,
+  getLegacySudokuChallengeBySeed,
+  getSudokuChallengeById,
   SUDOKU_CHALLENGES,
   SUDOKU_CHALLENGE_CATALOG_META,
-} from './20260829_challenges'
+} from './challenges'
 import {
   analyzeSudoku,
   countPuzzleSolutions,
@@ -196,30 +199,38 @@ describe('Sudoku engine', () => {
     expect(hardTargetMatches).toBeGreaterThan(0)
   })
 
-  test('keeps the generated challenge catalog reproducible and above its threshold', () => {
+  test('keeps the frozen challenge catalog self-contained and above its threshold', () => {
     expect(SUDOKU_CHALLENGE_CATALOG_META.candidateCount).toBe(10_000)
-    expect(SUDOKU_CHALLENGES.length).toBeGreaterThan(0)
-    expect(new Set(SUDOKU_CHALLENGES.map((entry) => entry.seed)).size)
+    expect(SUDOKU_CHALLENGE_CATALOG_META.catalogId).toBe('20260829-v1')
+    expect(SUDOKU_CHALLENGES).toHaveLength(163)
+    expect(new Set(SUDOKU_CHALLENGES.map((entry) => entry.id)).size)
       .toBe(SUDOKU_CHALLENGES.length)
 
     for (let index = 0; index < SUDOKU_CHALLENGES.length; index += 1) {
       const entry = SUDOKU_CHALLENGES[index]
-      expect(entry.rating).toBeGreaterThanOrEqual(
+      expect(entry.analysis.rating).toBeGreaterThanOrEqual(
         SUDOKU_CHALLENGE_CATALOG_META.threshold,
       )
       expect(entry.puzzle).toMatch(/^\d{81}$/)
+      expect(entry.solution).toMatch(/^[1-9]{81}$/)
+      expect(getSudokuChallengeById(entry.id)).toBe(entry)
       if (index > 0) {
-        expect(entry.rating).toBeLessThanOrEqual(
-          SUDOKU_CHALLENGES[index - 1].rating,
+        expect(entry.analysis.rating).toBeLessThanOrEqual(
+          SUDOKU_CHALLENGES[index - 1].analysis.rating,
         )
       }
     }
 
     for (const index of [0, Math.floor(SUDOKU_CHALLENGES.length / 2), SUDOKU_CHALLENGES.length - 1]) {
       const entry = SUDOKU_CHALLENGES[index]
-      const regenerated = generateSudoku('expert', entry.seed, 'classic')
-      expect(regenerated.analysis.rating).toBe(entry.rating)
-      expect(regenerated.puzzle.join('')).toBe(entry.puzzle)
+      const frozen = createSudokuChallengePuzzle(entry)
+      expect(frozen.challengeId).toBe(entry.id)
+      expect(frozen.analysis).toEqual(entry.analysis)
+      expect(frozen.puzzle.join('')).toBe(entry.puzzle)
+      expect(frozen.solution.join('')).toBe(entry.solution)
+      expect(countSolutions(frozen.puzzle)).toBe(1)
+      expect(isSudokuSolved(frozen.solution, frozen.solution)).toBe(true)
+      expect(getLegacySudokuChallengeBySeed(entry.seed)).toBe(entry)
     }
   })
 

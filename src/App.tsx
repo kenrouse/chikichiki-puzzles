@@ -229,13 +229,13 @@ function App() {
     window.requestAnimationFrame(() => window.scrollTo({ top: 0 }))
   }
 
-  function startSudokuChallenge(seed: number): void {
+  function startSudokuChallenge(challengeId: string, seed: number): void {
     const challengeUrl = buildSeededGameUrl(
       window.location.href,
       'sudoku',
       seed,
       'expert',
-      { variant: 'classic' },
+      { challenge: challengeId, variant: 'classic' },
     )
     window.location.hash = new URL(challengeUrl).hash
     window.scrollTo({ top: 0, behavior: 'smooth' })

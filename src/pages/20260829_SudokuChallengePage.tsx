@@ -5,7 +5,7 @@ import {
   SUDOKU_CHALLENGES,
   SUDOKU_CHALLENGE_CATALOG_META,
   type SudokuChallengeEntry,
-} from '../games/sudoku/20260829_challenges'
+} from '../games/sudoku/challenges'
 import type { HumanTechnique } from '../games/sudoku/humanSolver'
 import { getLocalizedCopy } from '../i18n/20260812_i18n'
 
@@ -86,9 +86,11 @@ const CHALLENGE_COPY = {
 } as const
 
 function matchesFilter(entry: SudokuChallengeEntry, filter: RatingFilter): boolean {
-  if (filter === '1000') return entry.rating < 1500
-  if (filter === '1500') return entry.rating >= 1500 && entry.rating < 2000
-  if (filter === '2000') return entry.rating >= 2000
+  if (filter === '1000') return entry.analysis.rating < 1500
+  if (filter === '1500') {
+    return entry.analysis.rating >= 1500 && entry.analysis.rating < 2000
+  }
+  if (filter === '2000') return entry.analysis.rating >= 2000
   return true
 }
 
@@ -103,7 +105,7 @@ export function SudokuChallengePage({
   onPlay,
 }: {
   onBack: () => void
-  onPlay: (seed: number) => void
+  onPlay: (challengeId: string, seed: number) => void
 }) {
   const { playEffect, preferences } = useAppExperience()
   const copy = getLocalizedCopy(preferences.language, CHALLENGE_COPY)
@@ -128,7 +130,7 @@ export function SudokuChallengePage({
 
   function startChallenge(entry: SudokuChallengeEntry): void {
     playEffect('select')
-    onPlay(entry.seed)
+    onPlay(entry.id, entry.seed)
   }
 
   return (
@@ -159,7 +161,7 @@ export function SudokuChallengePage({
           {copy.challengeCount}
         </span>
         <span>
-          <strong>{numberFormat.format(SUDOKU_CHALLENGES[0]?.rating ?? 0)}</strong>
+          <strong>{numberFormat.format(SUDOKU_CHALLENGES[0]?.analysis.rating ?? 0)}</strong>
           {copy.highestRating}
         </span>
       </div>
@@ -192,17 +194,23 @@ export function SudokuChallengePage({
       <div className="challenge-grid">
         {visible.map((entry) => {
           const rank = SUDOKU_CHALLENGES.indexOf(entry) + 1
+          const { analysis } = entry
+          const techniqueCount = analysis.hardestTechnique === 'search'
+            ? analysis.guessBranches
+            : analysis.hardestTechnique === 'none'
+              ? 0
+              : analysis.techniques[analysis.hardestTechnique]
           return (
             <button
-              aria-label={copy.puzzleLabel(rank, entry.rating)}
-              className={`challenge-card ${challengeTier(entry.rating)}`}
-              key={entry.seed}
+              aria-label={copy.puzzleLabel(rank, analysis.rating)}
+              className={`challenge-card ${challengeTier(analysis.rating)}`}
+              key={entry.id}
               onClick={() => startChallenge(entry)}
               type="button"
             >
               <span className="challenge-card-heading">
                 <small>CHALLENGE #{String(rank).padStart(3, '0')}</small>
-                <strong>{numberFormat.format(entry.rating)} <em>RATING</em></strong>
+                <strong>{numberFormat.format(analysis.rating)} <em>RATING</em></strong>
               </span>
 
               <span className="challenge-preview" aria-hidden="true">
@@ -219,11 +227,11 @@ export function SudokuChallengePage({
               <span className="challenge-card-details">
                 <span>
                   <small>{copy.technique}</small>
-                  <strong>{techniqueLabels[entry.hardestTechnique]} ×{entry.techniqueCount}</strong>
+                  <strong>{techniqueLabels[analysis.hardestTechnique]} ×{techniqueCount}</strong>
                 </span>
                 <span>
                   <small>CLUE / BRANCH</small>
-                  <strong>{entry.clueCount} / {entry.guessBranches}</strong>
+                  <strong>{analysis.clueCount} / {analysis.guessBranches}</strong>
                 </span>
                 <span>
                   <small>{copy.seed}</small>

@@ -35,6 +35,11 @@ import {
 import type { HumanTechnique } from './humanSolver'
 import type { KillerCage } from './killer'
 import { getSudokuPreviewAccess } from './20260812_previewAccess'
+import {
+  createSudokuChallengePuzzle,
+  getLegacySudokuChallengeBySeed,
+  getSudokuChallengeById,
+} from './challenges'
 
 interface SudokuHistoryEntry {
   notes: number[]
@@ -229,6 +234,10 @@ function createSession(
   variant: SudokuVariant = 'classic',
 ): SudokuSession {
   const puzzle = generateSudoku(difficulty, seed, variant)
+  return createSessionFromPuzzle(puzzle)
+}
+
+function createSessionFromPuzzle(puzzle: SudokuPuzzle): SudokuSession {
   return {
     elapsedSeconds: 0,
     hintsUsed: 0,
@@ -250,6 +259,14 @@ function createInitialSession(): SudokuSession {
   const variant: SudokuVariant = isSudokuVariant(requestedVariant)
     ? requestedVariant
     : 'classic'
+  const challenge = shared?.challengeId
+    ? getSudokuChallengeById(shared.challengeId)
+    : difficulty === 'expert' && variant === 'classic' && shared
+      ? getLegacySudokuChallengeBySeed(shared.seed)
+      : null
+  if (challenge) {
+    return createSessionFromPuzzle(createSudokuChallengePuzzle(challenge))
+  }
   return createSession(difficulty, shared?.seed, variant)
 }
 
@@ -639,7 +656,10 @@ export function SudokuGame() {
         <div className="toolbar-inline">
           <GameShareButton
             difficulty={session.puzzle.difficulty}
-            extraParameters={{ variant: currentVariant }}
+            extraParameters={{
+              challenge: session.puzzle.challengeId ?? null,
+              variant: currentVariant,
+            }}
             game="sudoku"
             seed={session.puzzle.seed}
             title={copy.title}
@@ -931,7 +951,10 @@ export function SudokuGame() {
             buttonLabel={copy.sharePuzzle}
             className="result-share-button"
             difficulty={session.puzzle.difficulty}
-            extraParameters={{ variant: currentVariant }}
+            extraParameters={{
+              challenge: session.puzzle.challengeId ?? null,
+              variant: currentVariant,
+            }}
             game="sudoku"
             seed={session.puzzle.seed}
             title={copy.title}

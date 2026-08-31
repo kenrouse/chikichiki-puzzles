@@ -70,10 +70,12 @@ npm test
 npm run build
 ```
 
-To regenerate the challenge catalog from the current Sudoku generator:
+To create a new challenge-catalog version from the current Sudoku generator:
 
 ```powershell
-npm run generate:sudoku-challenges
+npm run generate:sudoku-challenges -- --catalog=YYYYMMDD-v1
 ```
+
+Published catalogs are kept immutable to preserve shared URLs; add a new version instead of overwriting one.
 
 The production build uses `/chikichiki-puzzles/` as its GitHub Pages base path.

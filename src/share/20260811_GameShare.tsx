@@ -39,6 +39,8 @@ interface GameShareButtonProps {
 
 const SHARE_COPY = {
   ja: {
+    challengeDescription: 'このQRコードまたはURLを開くと、版付きの挑戦状IDから同じ盤面とRATINGが復元されます。',
+    challengeTooltip: '同じ挑戦状を固定URLとQRコードで共有',
     close: '共有画面を閉じる',
     copied: 'コピーしました',
     copyFailed: 'コピーできませんでした',
@@ -60,6 +62,8 @@ const SHARE_COPY = {
     topTooltip: 'トップページの固定URLを共有',
   },
   en: {
+    challengeDescription: 'Open this QR code or URL to restore the same board and RATING from its versioned challenge ID.',
+    challengeTooltip: 'Share this fixed challenge by URL or QR code',
     close: 'Close sharing dialog',
     copied: 'Copied',
     copyFailed: 'Could not copy',
@@ -122,13 +126,14 @@ export function GameShareButton({
     difficulty,
     extraParameters,
   )
+  const isChallenge = typeof extraParameters.challenge === 'string'
 
   return (
     <ShareButton
       accessibleLabel={copy.gameAccessible}
       buttonLabel={buttonLabel}
       className={className}
-      description={copy.gameDescription}
+      description={isChallenge ? copy.challengeDescription : copy.gameDescription}
       details={[
         { label: 'SEED', value: String(seed >>> 0) },
         { label: 'MODE', value: difficulty.toUpperCase() },
@@ -141,7 +146,9 @@ export function GameShareButton({
       tooltip={
         disabled
           ? (disabledReason ?? copy.disabled)
-          : copy.gameTooltip
+          : isChallenge
+            ? copy.challengeTooltip
+            : copy.gameTooltip
       }
       disabled={disabled}
     />

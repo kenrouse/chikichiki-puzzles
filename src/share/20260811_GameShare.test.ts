@@ -21,6 +21,7 @@ describe('seeded game sharing', () => {
 
   test('parses valid seeds and rejects invalid values', () => {
     expect(parseSharedGameHash('#/shisen?difficulty=expert&seed=20090101')).toEqual({
+      challengeId: null,
       difficulty: 'expert',
       firstMove: null,
       game: 'shisen',
@@ -71,6 +72,23 @@ describe('seeded game sharing', () => {
     )
 
     expect(parseSharedGameHash(new URL(url).hash)?.variant).toBe('killer')
+  })
+
+  test('preserves a versioned Sudoku challenge ID', () => {
+    const url = buildSeededGameUrl(
+      'https://kenrouse.github.io/chikichiki-puzzles/',
+      'sudoku',
+      377,
+      'expert',
+      { challenge: '20260829-v1-377', variant: 'classic' },
+    )
+
+    expect(parseSharedGameHash(new URL(url).hash)).toMatchObject({
+      challengeId: '20260829-v1-377',
+      seed: 377,
+    })
+    expect(parseSharedGameHash('#/sudoku?seed=377&challenge=../bad')?.challengeId)
+      .toBeNull()
   })
 
   test('builds a fixed top-page URL without the current hash or query', () => {

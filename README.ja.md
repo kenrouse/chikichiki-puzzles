@@ -70,10 +70,12 @@ npm test
 npm run build
 ```
 
-挑戦状カタログを現在の数独生成器から再作成する場合:
+新しい版の挑戦状カタログを現在の数独生成器から作成する場合:
 
 ```powershell
-npm run generate:sudoku-challenges
+npm run generate:sudoku-challenges -- --catalog=YYYYMMDD-v1
 ```
+
+公開済みカタログは共有URLを維持するため上書きせず、新しい版を追加します。
 
 本番ビルドは GitHub Pages のプロジェクト パス `/chikichiki-puzzles/` を基底 URL として生成します。

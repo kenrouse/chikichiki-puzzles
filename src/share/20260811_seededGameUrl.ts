@@ -1,6 +1,7 @@
 export type ShareableGameId = 'sudoku' | 'minesweeper' | 'shisen'
 
 export interface SharedGameParameters {
+  challengeId: string | null
   difficulty: string | null
   firstMove: number | null
   game: ShareableGameId
@@ -17,6 +18,10 @@ function parseOptionalUint32(value: string | null): number | null {
   return Number.isSafeInteger(parsed) && parsed >= 0 && parsed <= 0xffffffff
     ? parsed
     : null
+}
+
+function parseOptionalChallengeId(value: string | null): string | null {
+  return value && /^[a-z0-9][a-z0-9-]{0,79}$/i.test(value) ? value : null
 }
 
 export function parseSharedGameHash(hash: string): SharedGameParameters | null {
@@ -36,6 +41,7 @@ export function parseSharedGameHash(hash: string): SharedGameParameters | null {
   }
   const logic = parameters.get('logic')
   return {
+    challengeId: parseOptionalChallengeId(parameters.get('challenge')),
     difficulty: parameters.get('difficulty'),
     firstMove: parseOptionalUint32(parameters.get('first')),
     game: path,

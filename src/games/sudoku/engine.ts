@@ -28,6 +28,7 @@ export interface SudokuAnalysis {
 export interface SudokuPuzzle {
   analysis: SudokuAnalysis
   cages?: KillerCage[]
+  challengeId?: string
   difficulty: SudokuDifficulty
   puzzle: number[]
   seed: number
